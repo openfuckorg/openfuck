@@ -1,5 +1,5 @@
 OPENFUCK README
-
+OpenFuck Wiki https://github.com/openfuck/documents/wiki
 
 
 Frame 
