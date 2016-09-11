@@ -1,0 +1,131 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+ <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='style.css') }}"> 
+ <!-- <link rel= "stylesheet" type= "text/css" href= style.css > -->
+    
+    <title>OpenFUCK Interface</title>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.8/socket.io.min.js"></script>
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function(){
+            namespace = '/fucking';
+            var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
+            socket.on('connect', function() {
+                socket.emit('event', {data: 'I\'m connected!'});
+            });
+            socket.on('disconnect', function() {
+                $('#log').append('<br>Disconnected');
+            });
+            //socket.on('event', function(msg) {
+            //    $('#log').append('<br>Received event: ' + msg.data);
+            //});
+            //socket.on('broadcast', function(msg) {
+            //    $('#log').append('<br>Received broadcast: ' + msg.data);
+            //});
+            socket.on('update_value', function(msg) {
+                $('input#'+msg.who).val(msg.data)
+                $('#log').append('<br>Update Value ' + msg.data +msg.who);
+            });
+            socket.on('update_radio', function(msg) {
+                $('input:radio[name="mode"]').filter(`[value="${msg.data}"]`).click();
+                $('#log').append('<br>Update Radio ' + msg.data +msg.who);
+            });
+
+            //$('form#emit').submit(function(event) {
+            //    socket.emit('event', {data: $('#emit_data').val()});
+            //    return false;
+            //});
+            //$('form#broadcast').submit(function(event) {
+            //    socket.emit('broadcast', {data: $('#broadcast_data').val()});
+            //    return false;
+            //});
+            $('input.sync').on('change', function(event) {
+                socket.emit('ui_change', {who: $(this).attr('id'), data: $(this).val()});
+                return false;
+            });
+            $('#go_zero').click(function () {
+                socket.emit('button_click', {who: $(this).attr('id'), data: 1});
+            });
+            $('#go_min').click(function () {
+                socket.emit('button_click', {who: $(this).attr('id'), data: 1});
+            });
+            $('#go_max').click(function () {
+                socket.emit('button_click', {who: $(this).attr('id'), data: 1});
+            });
+            $('form#mode').on('change', function(event) {
+                socket.emit('radio_change', {who: $(this).attr('id'), data: $('input:radio[name=mode]:checked').val()});
+                return false
+            });
+        });
+    </script>
+</head>
+<body>
+	<aside>
+    <div align = "center">
+    <br>
+    <br>
+    <br>
+    <h2>OpenFUCK</h2>
+    OpenFuck.org
+    <br>
+    <br>
+
+    
+
+    <!-- Stuff for debugging
+
+    <h2>Send:</h2>
+    <form id="emit" method="POST" action='#'>
+        <input type="text" name="emit_data" id="emit_data" placeholder="Message">
+        <input type="submit" value="Echo">
+    </form>
+    <form id="broadcast" method="POST" action='#'>
+        <input type="text" name="broadcast_data" id="broadcast_data" placeholder="Message">
+        <input type="submit" value="Broadcast">
+    </form>
+
+    <h2>Log:</h2>
+    <div><p id="log"></p></div>
+    -->
+    
+    <h2>Off  |  On</h2>
+    <input id="on_off" class="sync" type="range" min="0" max="1" step="1" value="{{on_off}}"/>
+
+	
+	<h2 style="text-align:center;">Move</h2>
+    <input type="button" id="go_zero" value="Go Zero" /><br>
+    <input type="button" value="Go Min" id="go_min" /><br>
+    <input type="button" value="Go Max" id="go_max" />
+
+    <h2>Mode</h2>
+    <form id="mode">
+    <input type="radio" name="mode" value="0" checked> Go Between<br>
+    <input type="radio" name="mode" value="1"> Speed Crossing<br>
+    <input type="radio" name="mode" value="2"> Speed Ramp<br>
+    <input type="radio" name="mode" value="3"> Slapper<br>
+    <input type="radio" name="mode" value="4"> Threesome
+    </form><br>
+	</div>
+    </aside>
+	
+    
+    <section> 
+    <div align = "center">
+	<h3>
+    <br>Max Depth<br><input id="max_depth" class="sync" type="range" min="135" max="240" step="5" value="{{max_depth}}"/><br>
+    <br>Stroke Length<br><input id="stroke_length" class="sync" type="range" min="15" max="135" step="1" value="{{stroke_length}}"/><br>
+    <br>Max Delay<br><input id="max_delay" class="sync" type="range" min="0.5" max="10" step="0.5" value="{{max_delay}}"/><br>
+    <br>Min Delay<br><input id="min_delay" class="sync" type="range" min="0.5" max="10" step="0.5" value="{{min_delay}}"/><br>
+    <br>Max Speed<br><input id="max_speed" class="sync" type="range" min="10" max="100" step="1" value="{{max_speed}}"/><br>
+    <br>Min Speed<br><input id="min_speed" class="sync" type="range" min="10" max="100" step="1" value="{{min_speed}}"/><br>
+    <br>Speed Ramp Size<br><input id="speed_step" class="sync" type="range" min="8" max="100" step="1" value="{{speed_step}}"/><br>
+	</h3>
+    </div>
+	</section>
+    <footer>
+  <p>Source Code and Details at http://wwww.openfuck.org</p>
+
+</footer>
+</body>
+</html>
