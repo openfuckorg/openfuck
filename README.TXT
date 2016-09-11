@@ -13,7 +13,7 @@ An Air Compressor (>1HP) compresses air which is then filtered and regulated and
 
 Pneumatic Pathway
 Air compressor ->Regular -> Solenoid -> Front Piston Chamber -> Speed Control Valve -> Exhaust
-                              |-------> Rear Piston CHamber  -> Speed Control Valve -> Exhaust  
+                              |-------> Rear Piston Chamber  -> Speed Control Valve -> Exhaust  
 
 
 
