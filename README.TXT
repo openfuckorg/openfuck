@@ -27,14 +27,14 @@ A pair of avalanche rated N channel MOSFETS (with a zener + rectifier diodes to 
 
 We energize the forward coil (while de-energizing the backward coil) to move accordingly. 
 
-We drive the solenoid with a 12V power supply (the solenoid we selected is pretty power hungry, please use an appropriately sized power supply ) 
+We drive the solenoid with a 12V power supply . Please use a supply that can provide at least 2amps, preferably significantly more. 
 
 
 
 Arduino/stepper_command_test 
 Controls the forward and backward speed valves via a pair of AMIS 30543 stepper drivers connected to a pair of CLIPPARD SCPV speed control valves. We use accelstepper to accelerate and decelerate the stepper motors. 
 
-Suggest powering the stepper drivers from as high a voltage source as they will take (30V) or as close as you can get to it. This enables use to move the valves quickly for obvious benefits.
+We suggest powering the stepper drivers at 30V or as close as you can get without exceeding.
 
 Hookup : 
 
