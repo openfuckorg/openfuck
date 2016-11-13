@@ -29,6 +29,11 @@ We energize the forward coil (while de-energizing the backward coil) to move acc
 
 We drive the solenoid with a 12V power supply . Please use a supply that can provide at least 2amps, preferably significantly more. 
 
+Schematics Here : 
+https://github.com/openfuck/documents/blob/master/Screen%20Shot%202016-11-13%20at%205.21.18%20PM.png
+https://github.com/openfuck/documents/blob/master/Screen%20Shot%202016-11-13%20at%205.26.45%20PM.png
+
+
 
 
 Arduino/stepper_command_test 
