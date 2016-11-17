@@ -6,7 +6,7 @@ const uint8_t amisDirPin1 = 2;
 const uint8_t amisStepPin1 = 3;
 const uint8_t amisSlaveSelect1 = 4;
 
-//Stepper 2 FWD
+//Stepper 2 BCK
 const uint8_t amisDirPin2 = 5;
 const uint8_t amisStepPin2 = 6;
 const uint8_t amisSlaveSelect2 = 7;
