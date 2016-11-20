@@ -7,7 +7,6 @@ A frame was constructed from aluminium extrusion. See demo video and parts list 
 
 
 
-
 Air Handling
 An Air Compressor (>1HP) compresses air which is then filtered and regulated and regulated to ~50PSI before being fed into the solenoid explained below. It is preferable to run the robot at as high a pressure as possible while ensuring that the compressor is able to pump sufficient air to keep the pressure constant while running at full speed (Run the robot at full speed and crank up the pressure until the compressor is no longer able to keep up, then dial back slightly). We are easily able to operate up to 100PSI with a powerful enough compressor. Bare in mind this means the piston is capable of producing *SIGNIFICANT* amounts of force at *EXTREMELY HIGH* speeds (this makes for some yummy fucking but is rather dangerous ;)
 
@@ -21,7 +20,7 @@ Embedded Electronics
 
 Flash each of the following files onto an Arduino compatible board. 
 
-Arduino/Moses 
+Arduino/Moses - 5/3 Solenoid Driver
 A nieve controller that controls the forward/backward solenoid. 
 A pair of avalanche rated N channel MOSFETS (with a zener + rectifier diodes to control the negative voltage spike while dissipating it as quickly as possible) is used to drive a 5 port, 3 position , double acting pneumatic solenoid. 
 
@@ -34,14 +33,25 @@ https://github.com/openfuck/documents/blob/master/Screen%20Shot%202016-11-13%20a
 https://github.com/openfuck/documents/blob/master/Screen%20Shot%202016-11-13%20at%205.26.45%20PM.png
 
 
-
-
-Arduino/stepper_command_test 
+Arduino/stepper_command_test - Stepper Driver
 Controls the forward and backward speed valves via a pair of AMIS 30543 stepper drivers connected to a pair of CLIPPARD SCPV speed control valves. We use accelstepper to accelerate and decelerate the stepper motors. 
 
 We suggest powering the stepper drivers at 30V or as close as you can get without exceeding.
 
-Hookup : 
+The two stepper drivers share the serial SPI bus, wire D11, D12 , D13 of your arduino Uno to the correct pins on the stepper driver for  DO, DI, and CLK
+
+Each stepper has a (dir)ection, (nxt)/step, and (CS)/slave_select pin - wire those as described the following file directly to the arduino https://github.com/openfuck/code/blob/master/Code/Arduino%20/stepper_command_test/stepper_command_test.ino
+
+In general : connect as shown in : https://www.pololu.com/product/2970
+
+Please note that the clippard valve stepper coil pairs are red/black and blue/green - connect these pairs to Xp/Xn and Yp,Yn on the stepper drive,
+https://www.clippard.com/downloads/PDF_Documents/Product%20Data%20Sheets/Clippard%20SCPV%20Proportional%20Valve.pdf 
+
+Connect all the grounds of the stepper driver breadboard, the DC power supply and your arduino together.
+
+Connect power (+24 to +30V to the stepper drivers VMOT)  
+
+Final hookup : 
 
 -> Connect each of the arduinos via USB to your control computer. 
 
@@ -112,13 +122,3 @@ Suggested Mode of Operation)
 REMEMBER : IT DOESNT KNOW WHEN YOU HAVE CUM. IT WILL NOT STOP. IT WILL NOT GET TIRED.EVER. IF YOU WANT IT TO STOP YOU HAVE TO TELL IT TO STOP
 
 CAUTION : IF YOU ARE THE KIND OF PERSON WHO GETS FUCKED SO DEEP INTO HEADSPACE THAT YOU MAY NOT BE ABLE TO TURN THE ROBOT OFF OR STOP - FOR FUCKS SAKE HAVE SOMEBODY NEARBY TO HELP!!!!! 
-
-    
-
-
-
-
-
-
-
-
