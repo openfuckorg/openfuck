@@ -1,5 +1,6 @@
-#I require the following modules (and their dependencies) : python-socketio,flask,eventlet
-#If you have gevent* installed - please remove them before installing above packages . 
+#Runs on Python 2.7
+#Dependencies:
+#sudo pip install python-socketio flask eventlet flask-cors flask-sslify flask-login pyserial future 
 
 async_mode = 'eventlet'
 
