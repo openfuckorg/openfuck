@@ -1,5 +1,6 @@
 #Runs on Python 2.7
-#Dependencies:
+#On raspberry pi , install pip first from the python-dev apt package . http://raspberry.io/wiki/how-to-get-python-on-your-raspberrypi/
+#Install Dependencies:
 #sudo pip install python-socketio flask eventlet flask-cors flask-sslify flask-login pyserial future 
 
 async_mode = 'eventlet'
