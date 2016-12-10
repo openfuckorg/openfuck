@@ -10,47 +10,68 @@ from collections.abc import Sequence
 __author__ = "riggs"
 
 
+class Serializer:
+
+    def to_dict(self):
+        raise NotImplementedError
+
+    @classmethod
+    def from_dict(cls, dict_):
+        if cls is not Serializer:   # Not overwritten in subclass
+            raise NotImplementedError
+        for klass in cls.__subclasses__():
+            try:
+                return klass.from_dict(dict_)
+            except TypeError:
+                pass
+        else:
+            raise TypeError("dictionary does not match any subclasses of", cls.__name__)
+
+    def serialize(self):
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def deserialize(cls, data):
+        return cls.from_dict(json.loads(data))
+
+
 @attr.s
-class Stroke:
-    @staticmethod
-    def _percentage_validator(instance, attriubute, value):
+class Stroke(Serializer):
+
+    def _percentage_validator(self, attriubute, value):
         if not (0 <= value <= 1):
-            raise ValueError("Value must be between 0 and 1 (inclusive).")
+            raise ValueError("value must be between 0 and 1 (inclusive).")
 
     position = attr.ib(validator=_percentage_validator)
     velocity = attr.ib(validator=_percentage_validator)  # May be some sort of curve in the future.
 
-    def _to_json(self):
-        return json.dumps(attr.asdict(self))
+    def to_dict(self):
+        return attr.asdict(self)
 
     @classmethod
-    def _from_json(cls, data):
-        return json.loads(data, object_hook=lambda obj: cls(**obj))
-
-    serialize = _to_json
-    deserialize = _from_json
+    def from_dict(cls, dict_):
+        return cls(**dict_)
 
 
 @attr.s
-class Pattern:
-    @staticmethod
-    def _actions_validator(instance, attribute, value):
-        if not isinstance(value, Sequence) or \
-           not all([isinstance(obj, (Stroke, Pattern)) for obj in value]):
-            raise ValueError("Actions must be a sequence of Strokes or Patterns.")
+class Pattern(Serializer):
 
-    repeat = attr.ib(validator=lambda x: x >= 0)
+    def _actions_validator(self, attribute, value):
+        if not isinstance(value, Sequence) or \
+                not len(value) or \
+                not all([isinstance(obj, (Stroke, Pattern)) for obj in value]):
+            raise ValueError("actions must be a sequence of Strokes or Patterns.")
+
+    repeat = attr.ib(convert=lambda v: v if v is not None else float('inf'), validator=lambda i, a, v: v >= 0)
     actions = attr.ib(validator=_actions_validator)
 
-    def _to_json(self):
-        return json.dumps(attr.asdict(self))
+    def to_dict(self):
+        return {'repeat': self.repeat, 'actions': [action.to_dict() for action in self.actions]}
 
     @classmethod
-    def _from_json(cls, data):
-        if 'repeat' in data:
-            return json.loads(data, object_hook=lambda obj: cls(**obj))
-        else:
-            return json.loads(data, object_hook=lambda obj: Stroke(**obj))
-
-    serialize = _to_json
-    deserialize = _from_json
+    def from_dict(cls, dict_):
+        try:
+            dict_['actions'] = [Serializer.from_dict(action) for action in dict_['actions']]
+        except KeyError:
+            raise TypeError("missing keyword argument 'actions'")
+        return cls(**dict_)
