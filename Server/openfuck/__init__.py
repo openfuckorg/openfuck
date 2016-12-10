@@ -2,9 +2,9 @@
 Library for running the OpenFUCK sex robot.
 """
 
-from collections.abc import Sequence
-
 import attr
+import json
+from collections.abc import Sequence
 
 
 __author__ = "riggs"
@@ -20,6 +20,16 @@ class Stroke:
     position = attr.ib(validator=_percentage_validator)
     velocity = attr.ib(validator=_percentage_validator)  # May be some sort of curve in the future.
 
+    def _to_json(self):
+        return json.dumps(attr.asdict(self))
+
+    @classmethod
+    def _from_json(cls, data):
+        return json.loads(data, object_hook=lambda obj: cls(**obj))
+
+    serialize = _to_json
+    deserialize = _from_json
+
 
 @attr.s
 class Pattern:
@@ -31,3 +41,16 @@ class Pattern:
 
     repeat = attr.ib(validator=lambda x: x >= 0)
     actions = attr.ib(validator=_actions_validator)
+
+    def _to_json(self):
+        return json.dumps(attr.asdict(self))
+
+    @classmethod
+    def _from_json(cls, data):
+        if 'repeat' in data:
+            return json.loads(data, object_hook=lambda obj: cls(**obj))
+        else:
+            return json.loads(data, object_hook=lambda obj: Stroke(**obj))
+
+    serialize = _to_json
+    deserialize = _from_json
