@@ -44,7 +44,7 @@ class Stroke(Serializer):
             raise ValueError("value must be between 0 and 1 (inclusive).")
 
     position = attr.ib(validator=_percentage_validator)
-    velocity = attr.ib(validator=_percentage_validator)  # May be some sort of curve in the future.
+    speed = attr.ib(validator=_percentage_validator)  # May be some sort of curve in the future.
 
     def to_dict(self):
         return attr.asdict(self)
