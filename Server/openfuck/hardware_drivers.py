@@ -1,12 +1,12 @@
 """
 Hardware drivers used by device.py
 """
-import attr
 import asyncio
-# import serial
-from .serial_asyncio import open_serial_connection
+
+import attr
 
 from .logger import logger
+from .serial_asyncio import open_serial_connection
 
 __author__ = "riggs"
 
@@ -58,7 +58,7 @@ class Driver:
             speed = bytes((int(stroke.speed * 100 + offset),))
             self.valves.writer.write(speed)
             await self.valves.writer.drain()
-        else:   # First time, no last position
+        else:  # First time, no last position
             speed = bytes((int(stroke.speed * 100),))
             self.valves.writer.write(speed)
             await self.valves.writer.drain()
@@ -76,25 +76,45 @@ class Driver:
 class Test_Driver:
     def __init__(self, loop):
         self.loop = loop
-        self.connected = False
-        self.log = logger(loop.__class__.__name__)
+        self.connected = asyncio.Event(loop=loop)
+        self._connecting = asyncio.Event(loop=loop)
+        self.log = logger("Hardware Driver")
+        self.moving = asyncio.Event(loop=loop)
 
     async def connect(self):
-        self.log.debug('connecting')
-        await asyncio.sleep(0.01)
-        self.connected = True
+        if not self.connected.is_set() and \
+                not self._connecting.is_set():
+            self._connecting.set()
+            self.log.debug('connecting')
+            await asyncio.sleep(0.1)
+            self.connected.set()
+            self.log.debug('connected')
+        else:
+            self.log.debug('waiting for connection')
+            await self.connected.wait()
+            self.log.debug('connection ready')
 
     async def read(self):
-        if not self.connected:
+        self.log.debug('start reading')
+        if not self.connected.is_set():
             await self.connect()
-        self.log.debug('reading')
+        await self.moving.wait()
         await asyncio.sleep(1)
+        self.moving.clear()
+        self.log.debug('stopped "moving"')
+        self.log.debug('finished reading')
         return True
 
     async def write(self, stroke):
-        if not self.connected:
+        self.log.debug('start writing {}'.format(stroke))
+        if not self.connected.is_set():
             await self.connect()
-        self.log.debug('writing {}'.format(stroke))
+        self.log.debug('finished writing')
+        await asyncio.sleep(0.01)
+        self.moving.set()
+        self.log.debug('started "moving"')
 
     def close(self):
+        self.connected.clear()
+        self._connecting.clear()
         self.log.debug('closed')
