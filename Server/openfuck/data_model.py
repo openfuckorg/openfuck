@@ -55,7 +55,7 @@ class Stroke(Serializer):
         return value
 
     def __repr__(self):
-        return "{}(position={}, speed={}".format(self.__class__.__name__, self.position, self.speed)
+        return "{}(position={}, speed={})".format(self.__class__.__name__, self.position, self.speed)
 
     def to_dict(self):
         return {'position': self.position, 'speed': self.speed}
@@ -69,17 +69,17 @@ class Pattern(Serializer):
 
     class Iterator:
         def __init__(self, pattern):
-            self.repeat = pattern.repeat
+            self.cycles = pattern.cycles
             self.original_actions = tuple(pattern.actions)
             self.actions = list(pattern.actions)
-            self._repeat_count = 0
+            self._cycle_count = 1
             self._actions_index = 0
 
         def __next__(self):
             if self._actions_index >= len(self.actions):
-                self._repeat_count += 1
+                self._cycle_count += 1
                 self._actions_index = 0
-            if self._repeat_count > self.repeat:
+            if self._cycle_count > self.cycles:
                 raise StopIteration
             thing = self.actions[self._actions_index]
             if isinstance(thing, Stroke):
@@ -96,17 +96,17 @@ class Pattern(Serializer):
                     stroke = self.__next__()
             return stroke
 
-    def __init__(self, repeat, actions):
-        self.repeat = self._validate_repeat(repeat)
+    def __init__(self, cycles, actions):
+        self.cycles = self._validate_cycles(cycles)
         self.actions = self._validate_actions(actions)
 
     @staticmethod
-    def _validate_repeat(repeat):
-        if repeat is None:
-            repeat = float('inf')
-        if not repeat >= 0:
-            raise ValueError("repeat must be greater than 0")
-        return repeat
+    def _validate_cycles(cycles):
+        if cycles is None:
+            cycles = float('inf')
+        if not cycles > 0:
+            raise ValueError("cycles must be greater than 0")
+        return cycles
 
     @staticmethod
     def _validate_actions(actions):
@@ -114,16 +114,16 @@ class Pattern(Serializer):
                 not len(actions) or \
                 not all([isinstance(obj, (Stroke, Pattern)) for obj in actions]):
             raise ValueError("actions must be a sequence of Strokes or Patterns.")
-        return actions
+        return list(actions)
 
     def __repr__(self):
-        return "{}(repeat={}, actions={}".format(self.__class__.__name__, self.repeat, self.actions)
+        return "{}(cycles={}, actions={}".format(self.__class__.__name__, self.cycles, self.actions)
 
     def __iter__(self):
         return self.Iterator(self)
 
     def to_dict(self):
-        return {'repeat': self.repeat, 'actions': [action.to_dict() for action in self.actions]}
+        return {'cycles': self.cycles, 'actions': [action.to_dict() for action in self.actions]}
 
     @classmethod
     def from_dict(cls, dict_):

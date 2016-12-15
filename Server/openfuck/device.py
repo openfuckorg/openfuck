@@ -3,57 +3,125 @@ Handle all hardware communication.
 """
 
 import asyncio
-from concurrent.futures import FIRST_COMPLETED
 
 from .logger import logger
 
 __author__ = "riggs"
 
-log = logger('device loop')
 
+async def connect(driver, event_loop, current_pattern):
 
-async def connect(driver, event_loop, stop_event, current_pattern):
+    log = logger('device communication')
+
     driver = driver(event_loop)
 
-
-
-async def old_connect(driver_class, next_queue, done_queue, event_loop, stop_event):
-    driver = driver_class(event_loop)
-    stroke = None
-    first_run = True
-    stroke_done = asyncio.Event(loop=event_loop)
-    log.debug('creating initial driver_read_task')
-    driver_read_task = event_loop.create_task(driver.read())
-    log.debug('creating initial next_stroke_task')
-    next_stroke_task = event_loop.create_task(next_queue.get())
-    log.debug('waiting for tasks')
-    completed, pending = await asyncio.wait((driver_read_task, next_stroke_task), loop=event_loop, return_when=FIRST_COMPLETED)
-    while not stop_event.is_set():
-        if driver_read_task in completed:
-            log.debug('driver_read_task completed')
-            if driver_read_task.result() and stroke is not None:
-                stroke_done.set()
-                log.debug('set stroke_done event as done: {}({})'.format(stroke_done, id(stroke_done)))
-                log.debug('writing {} to driver'.format(stroke))
-                await driver.write(stroke)
-            log.debug('creating new driver_read_task')
-            driver_read_task = event_loop.create_task(driver.read())
-        elif next_stroke_task in completed:
-            log.debug('next_stroke_task completed')
-            stroke = next_stroke_task.result()
-            log.debug('got stroke from queue: {}'.format(stroke))
-            stroke_done = asyncio.Event(loop=event_loop)
-            log.debug('putting stroke_done event into queue: {}({})'.format(stroke_done, id(stroke_done)))
-            event_loop.create_task(done_queue.put(stroke_done))
-            log.debug('creating new next_stroke_task')
-            next_stroke_task = event_loop.create_task(next_queue.get())
-            if first_run:
-                first_run = False
-                log.debug('writing {} to driver'.format(stroke))
-                await driver.write(stroke)
-        log.debug('waiting for tasks')
-        completed, pending = await asyncio.wait((driver_read_task, next_stroke_task), loop=event_loop, return_when=FIRST_COMPLETED)
+    async for stroke in current_pattern:
+        log.debug("writing {}".format(stroke))
+        await driver.write(stroke)
+        log.debug("waiting for stroke to finish")
+        await driver.stroke_finished()
     else:
-        for task in pending:
-            task.cancel()
         driver.close()
+
+
+class Base_Driver:
+    """
+    Abstract class to provide API for all device drivers.
+
+    Subclass and implement _connect, _read, _write, and _close.
+    """
+
+    done_values = []
+
+    def __init__(self, loop):
+        self.loop = loop
+        self._connected = asyncio.Event(loop=loop)
+        self._connecting = asyncio.Event(loop=loop)
+        self.log = logger(self.__class__.__name__)
+
+    async def connect(self):
+        """
+        Safely connect to device, ensuring only one connection.
+        """
+        if not self._connected.is_set() and \
+                not self._connecting.is_set():
+            self._connecting.set()
+            self.log.debug('connecting')
+            await self._connect()
+            self._connected.set()
+            self.log.info('connected')
+        else:
+            self.log.debug('waiting for connection')
+            await self._connected.wait()
+            self.log.debug('connection ready')
+
+    async def read(self):
+        """
+        Connect, if necessary, and read from device. _read must be supplied by subclass.
+        """
+        if not self._connected:
+            self.log.debug('read connecting')
+            await self.connect()
+        self.log.debug('reading')
+        return await self._read()
+
+    async def stroke_finished(self):
+        """
+        Wait until device sends 'done moving' value, then return True, discarding any other values read.
+        """
+        value = await self.read()
+        if value in self.done_values:
+            return True
+        else:
+            return await self.stroke_finished()
+
+    async def write(self, stroke):
+        self.log.debug('writing {}'.format(stroke))
+        if not self._connected.is_set():
+            await self.connect()
+        await self._write(stroke)
+
+    def close(self):
+        self._connected.clear()
+        self._connecting.clear()
+        self._close()
+        self.log.info('closed')
+
+    async def _connect(self):
+        raise NotImplementedError
+
+    async def _read(self):
+        raise NotImplementedError
+
+    async def _write(self, stroke):
+        raise NotImplementedError
+
+    async def _close(self):
+        raise NotImplementedError
+
+
+class Mock_Driver(Base_Driver):
+
+    done_values = [True]
+
+    def __init__(self, loop):
+        super().__init__(loop)
+        self.moving = asyncio.Event(loop=loop)
+
+    async def _connect(self):
+        await asyncio.sleep(0.1)
+
+    async def _read(self):
+        await self.moving.wait()
+        await asyncio.sleep(1)
+        self.moving.clear()
+        self.log.debug('stopped "moving"')
+        return True
+
+    async def _write(self, stroke):
+        await asyncio.sleep(0.01)
+        self.moving.set()
+        self.log.debug('started "moving"')
+
+    def _close(self):
+        pass
