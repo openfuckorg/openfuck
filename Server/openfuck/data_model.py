@@ -67,6 +67,35 @@ class Stroke(Serializer):
 
 class Pattern(Serializer):
 
+    class Iterator:
+        def __init__(self, pattern):
+            self.repeat = pattern.repeat
+            self.original_actions = tuple(pattern.actions)
+            self.actions = list(pattern.actions)
+            self._repeat_count = 0
+            self._actions_index = 0
+
+        def __next__(self):
+            if self._actions_index >= len(self.actions):
+                self._repeat_count += 1
+                self._actions_index = 0
+            if self._repeat_count > self.repeat:
+                raise StopIteration
+            thing = self.actions[self._actions_index]
+            if isinstance(thing, Stroke):
+                stroke = thing
+                self._actions_index += 1
+            else:
+                if not getattr(thing, '__next__', None):
+                    thing = self.actions[self._actions_index] = iter(thing)
+                try:
+                    stroke = thing.__next__()
+                except StopIteration:
+                    self.actions[self._actions_index] = self.original_actions[self._actions_index]
+                    self._actions_index += 1
+                    stroke = self.__next__()
+            return stroke
+
     def __init__(self, repeat, actions):
         self.repeat = self._validate_repeat(repeat)
         self.actions = self._validate_actions(actions)
@@ -89,6 +118,9 @@ class Pattern(Serializer):
 
     def __repr__(self):
         return "{}(repeat={}, actions={}".format(self.__class__.__name__, self.repeat, self.actions)
+
+    def __iter__(self):
+        return self.Iterator(self)
 
     def to_dict(self):
         return {'repeat': self.repeat, 'actions': [action.to_dict() for action in self.actions]}

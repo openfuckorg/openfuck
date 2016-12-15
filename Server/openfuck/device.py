@@ -12,7 +12,12 @@ __author__ = "riggs"
 log = logger('device loop')
 
 
-async def connect(driver_class, next_queue, done_queue, event_loop, stop_event):
+async def connect(driver, event_loop, stop_event, current_pattern):
+    driver = driver(event_loop)
+
+
+
+async def old_connect(driver_class, next_queue, done_queue, event_loop, stop_event):
     driver = driver_class(event_loop)
     stroke = None
     first_run = True

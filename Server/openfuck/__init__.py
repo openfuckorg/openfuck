@@ -15,19 +15,39 @@ stop_event = asyncio.Event(loop=event_loop)
 
 
 class Current_Pattern(Pattern):
-    updated = asyncio.Event()
 
-    def update(self, pattern):
+    updated = asyncio.Event()
+    lock = asyncio.Lock(loop=event_loop)
+
+    async def update(self, pattern):
         if isinstance(pattern, dict):
             return self.update(super().from_dict(pattern))
-        self.position = pattern.position
-        self.speed = pattern.speed
+        await self.lock.acquire()
+        self.repeat = pattern.repeat
+        self.actions = pattern.actions
+        self._reset_state()
+        self.lock.release()
         return self
+
+    def _reset_state(self):
+        self._iter_actions_index = 0
+        self._iter_repeat_count = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        await self.lock.acquire()
+        stroke = self.__next__()
+        self.lock.release()
+        return stroke
 
 
 current_pattern = Current_Pattern(repeat=0, actions=(Stroke(position=0, speed=0.5),))
 
+
 # Device object/loop/thing and websockets server are given event_loop, stop_event and current_pattern.
+# Device is also given Driver object to use (this easily allows for multiple hardware).
 # Server updates current_pattern and sets the current_pattern.updated event flag.
 # Device waits for flag, updates its next Stroke pointer. (Parse pattern as depth-first tree transversal + repeats)
 # Device listens for done moving signal, sends next Stroke.
@@ -63,7 +83,7 @@ def test():
         log.debug('setting stop_event {}({})'.format(stop_event, id(stop_event)))
         stop_event.set()
 
-    event_loop.create_task(device.connect(Test_Driver, next_stroke_queue, stroke_done_queue, event_loop, stop_event))
+    event_loop.create_task(device.old_connect(Test_Driver, next_stroke_queue, stroke_done_queue, event_loop, stop_event))
 
     event_loop.create_task(send_strokes([Stroke(i / 10, i / 10) for i in range(3)]))
 
