@@ -9,11 +9,11 @@ from .logger import logger
 __author__ = "riggs"
 
 
-async def connect(driver, event_loop, current_pattern):
+async def connect(Driver, event_loop, current_pattern):
 
     log = logger('device communication')
 
-    driver = driver(event_loop)
+    driver = Driver(event_loop)
 
     async for stroke in current_pattern:
         log.debug("writing {}".format(stroke))
@@ -28,7 +28,7 @@ class Base_Driver:
     """
     Abstract class to provide API for all device drivers.
 
-    Subclass and implement _connect, _read, _write, and _close.
+    Subclass and implement _connect, _read, _write, and _close, and define done_values.
     """
 
     done_values = []
@@ -36,7 +36,7 @@ class Base_Driver:
     def __init__(self, loop):
         self.loop = loop
         self._connected = asyncio.Event(loop=loop)
-        self._connecting = asyncio.Event(loop=loop)
+        self._connecting = False
         self.log = logger(self.__class__.__name__)
 
     async def connect(self):
@@ -44,8 +44,8 @@ class Base_Driver:
         Safely connect to device, ensuring only one connection.
         """
         if not self._connected.is_set() and \
-                not self._connecting.is_set():
-            self._connecting.set()
+                not self._connecting:
+            self._connecting = True
             self.log.debug('connecting')
             await self._connect()
             self._connected.set()
@@ -83,7 +83,7 @@ class Base_Driver:
 
     def close(self):
         self._connected.clear()
-        self._connecting.clear()
+        self._connecting = False
         self._close()
         self.log.info('closed')
 

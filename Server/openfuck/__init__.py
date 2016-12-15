@@ -24,7 +24,7 @@ class Current_Pattern(Pattern):
         self.log = logger(self.__class__.__name__)
 
     def update(self, pattern):
-        self.log.debug("Updating with {}".format(pattern))
+        self.log.debug("Updating to {}".format(pattern))
         if isinstance(pattern, dict):
             return self.update(super().from_dict(pattern))
         self.cycles = pattern.cycles
@@ -81,3 +81,7 @@ def test():
         event_loop.run_forever()
     except KeyboardInterrupt:
         pass
+
+
+if __name__ == "__main__":
+    test()
