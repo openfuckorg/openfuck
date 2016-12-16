@@ -16,21 +16,33 @@ event_loop = asyncio.get_event_loop()
 stop_event = asyncio.Event(loop=event_loop)
 
 
-class Current_Pattern(Pattern):
-    def __init__(self, *args, **kwargs):
+class Master_Pattern(Sub_Pattern):
+    def __init__(self, *args, running=True, **kwargs):
         super().__init__(*args, **kwargs)
+        self.running = running
         self.updated = asyncio.Event()
         self.iterable = iter(self)
         self.log = logger(self.__class__.__name__)
 
+    @staticmethod
+    def _validate_cycles(cycles):
+        if not cycles > 0:
+            raise ValueError("cycles must be greater than 0")
+        return cycles
+
     def update(self, pattern):
         self.log.debug("Updating to {}".format(pattern))
         if isinstance(pattern, dict):
-            return self.update(super().from_dict(pattern))
+            return self.update(self.from_dict(pattern))
         self.cycles = pattern.cycles
+        self.running = pattern.running
         self.actions = pattern.actions
         self.iterable = iter(self)
         self.updated.set()
+
+    def __repr__(self):
+        return "{}(cycles={}, running={}, actions={}".format(self.__class__.__name__, self.cycles, self.running,
+                                                             self.actions)
 
     def __aiter__(self):
         return self
@@ -39,11 +51,14 @@ class Current_Pattern(Pattern):
         if stop_event.is_set():
             raise StopAsyncIteration
         try:
+            if not self.running:
+                self.updated.clear()  # Clear event to wait for update.
+                raise StopIteration
             stroke = self.iterable.__next__()
             self.updated.clear()
             return stroke
         except StopIteration:
-            self.log.debug("Pattern expended, waiting for update")
+            self.log.debug("{}, waiting for update".format("Sub_Pattern expended" if self.running else "not running"))
             # If updated event is triggered first, clear flag and loop recurse to get first Stroke from new pattern.
             # If stop event is triggered first, recurse and StopAsyncIteration will be called because flag is set.
             completed, pending = await asyncio.wait([self.updated.wait(), stop_event.wait()],
@@ -54,7 +69,7 @@ class Current_Pattern(Pattern):
             return await self.__anext__()
 
 
-current_pattern = Current_Pattern(cycles=1, actions=(Stroke(position=0, speed=0.5),))
+current_pattern = Master_Pattern(running=False, cycles=1, actions=(Stroke(position=0, speed=0.5),))
 
 
 # Device object/loop/thing and websockets server are given event_loop, stop_event and current_pattern.
@@ -68,23 +83,26 @@ current_pattern = Current_Pattern(cycles=1, actions=(Stroke(position=0, speed=0.
 def test():
     # from functools import partial
     #
-    # event_loop.call_later(0, partial(current_pattern.update, Pattern(2, [Stroke(.69, .69), Stroke(.42, .42)])))
+    # event_loop.call_later(0, partial(current_pattern.update, Sub_Pattern(2, [Stroke(.69, .69), Stroke(.42, .42)])))
     #
     # event_loop.call_later(8, partial(current_pattern.update,
-    #                                  Pattern(float('inf'), [Stroke(0.1, 0.1), Stroke(0.2, 0.2), Stroke(0.3, 0.3)])))
+    #                                  Sub_Pattern(float('inf'), [Stroke(0.1, 0.1), Stroke(0.2, 0.2), Stroke(0.3, 0.3)])))
     #
     # event_loop.call_later(12, stop_event.set)
 
     async def set_up():
-        await device.connect(device.Mock_Driver, current_pattern, event_loop)
-        await websockets.connect('127.0.0.1', 6969, current_pattern, stop_event, event_loop)
+        device_close = await device.connect(device.Mock_Driver, current_pattern, stop_event, event_loop)
+        websockets_close = await websockets.connect('127.0.0.1', 6969, current_pattern, stop_event, event_loop)
+        return device_close, websockets_close
 
-    event_loop.run_until_complete(set_up())
+    stop_coros = event_loop.run_until_complete(set_up())
 
     try:
         event_loop.run_forever()
     except KeyboardInterrupt:
-        pass
+        # Cleanup.
+        stop_event.set()
+        event_loop.run_until_complete(asyncio.wait(stop_coros))
 
 
 if __name__ == "__main__":

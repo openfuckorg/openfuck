@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 
 __author__ = "riggs"
-__all__ = ('Stroke', 'Pattern')
+__all__ = ('Stroke', 'Sub_Pattern')
 
 
 class Serializer:
@@ -32,7 +32,7 @@ class Serializer:
             except TypeError:
                 pass
         else:
-            raise TypeError("dictionary does not match any subclasses of", cls.__name__)
+            raise TypeError("data does not match any subclasses of {}".format(cls.__name__))
 
     def serialize(self):
         return json.dumps(self.to_dict())
@@ -65,7 +65,7 @@ class Stroke(Serializer):
         return cls(**dict_)
 
 
-class Pattern(Serializer):
+class Sub_Pattern(Serializer):
 
     class Iterator:
         def __init__(self, pattern):
@@ -102,8 +102,8 @@ class Pattern(Serializer):
 
     @staticmethod
     def _validate_cycles(cycles):
-        if cycles is None:
-            cycles = float('inf')
+        if cycles == float('inf'):
+            raise ValueError("sub-patterns cannot cycle forever")
         if not cycles > 0:
             raise ValueError("cycles must be greater than 0")
         return cycles
@@ -112,8 +112,8 @@ class Pattern(Serializer):
     def _validate_actions(actions):
         if not isinstance(actions, Sequence) or \
                 not len(actions) or \
-                not all([isinstance(obj, (Stroke, Pattern)) for obj in actions]):
-            raise ValueError("actions must be a sequence of Strokes or Patterns.")
+                not all([isinstance(obj, (Stroke, Sub_Pattern)) for obj in actions]):
+            raise ValueError("actions must be a sequence of Strokes or Patterns")
         return list(actions)
 
     def __repr__(self):

@@ -9,7 +9,7 @@ from .logger import logger
 __author__ = "riggs"
 
 
-async def connect(Driver, current_pattern, event_loop):
+async def connect(Driver, current_pattern, stop_event, event_loop):
 
     log = logger('device communication')
 
@@ -26,7 +26,13 @@ async def connect(Driver, current_pattern, event_loop):
         finally:
             driver.close()
 
-    event_loop.create_task(loop())
+    loop_task = event_loop.create_task(loop())
+
+    async def stop():
+        await stop_event.wait()
+        loop_task.cancel()
+
+    return stop()
 
 
 class Base_Driver:
