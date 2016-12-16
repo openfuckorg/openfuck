@@ -3,7 +3,6 @@ The Master of Control
 """
 
 import asyncio
-from concurrent.futures import FIRST_COMPLETED
 
 from . import device
 from .data_model import *
@@ -47,7 +46,7 @@ class Current_Pattern(Pattern):
             # If updated event is triggered first, clear flag and loop recurse to get first Stroke from new pattern.
             # If stop event is triggered first, recurse and StopAsyncIteration will be called because flag is set.
             completed, pending = await asyncio.wait([self.updated.wait(), stop_event.wait()],
-                                                    loop=event_loop, return_when=FIRST_COMPLETED)
+                                                    loop=event_loop, return_when=asyncio.FIRST_COMPLETED)
             for task in pending:  # Clean up after yourself.
                 task.cancel()
             self.updated.clear()

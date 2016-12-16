@@ -5,7 +5,7 @@ import attr
 
 from .device import Base_Driver
 from .logger import logger
-from .serial_asyncio import open_serial_connection  # Installed locally from github because of bug in version on pypi.
+from serial_asyncio import open_serial_connection
 
 __author__ = "riggs"
 
