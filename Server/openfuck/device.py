@@ -1,5 +1,5 @@
 """
-Handle all hardware communication.
+Simple API to handle all hardware communication.
 """
 
 import asyncio
@@ -9,19 +9,24 @@ from .logger import logger
 __author__ = "riggs"
 
 
-async def connect(Driver, event_loop, current_pattern):
+async def connect(Driver, current_pattern, event_loop):
 
     log = logger('device communication')
 
     driver = Driver(event_loop)
+    await driver.connect()
 
-    async for stroke in current_pattern:
-        log.debug("writing {}".format(stroke))
-        await driver.write(stroke)
-        log.debug("waiting for stroke to finish")
-        await driver.stroke_finished()
-    else:
-        driver.close()
+    async def loop():
+        try:
+            async for stroke in current_pattern:
+                log.debug("writing {}".format(stroke))
+                await driver.write(stroke)
+                log.debug("waiting for stroke to finish")
+                await driver.stroke_finished()
+        finally:
+            driver.close()
+
+    event_loop.create_task(loop())
 
 
 class Base_Driver:

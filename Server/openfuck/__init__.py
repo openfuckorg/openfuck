@@ -5,6 +5,7 @@ The Master of Control
 import asyncio
 
 from . import device
+from . import websockets
 from .data_model import *
 from .logger import logger
 
@@ -65,16 +66,20 @@ current_pattern = Current_Pattern(cycles=1, actions=(Stroke(position=0, speed=0.
 # This file basically just creates the shared data objects then adds everything to the event_loop and runs it.
 
 def test():
-    from functools import partial
+    # from functools import partial
+    #
+    # event_loop.call_later(0, partial(current_pattern.update, Pattern(2, [Stroke(.69, .69), Stroke(.42, .42)])))
+    #
+    # event_loop.call_later(8, partial(current_pattern.update,
+    #                                  Pattern(float('inf'), [Stroke(0.1, 0.1), Stroke(0.2, 0.2), Stroke(0.3, 0.3)])))
+    #
+    # event_loop.call_later(12, stop_event.set)
 
-    event_loop.call_later(0, partial(current_pattern.update, Pattern(2, [Stroke(.69, .69), Stroke(.42, .42)])))
+    async def set_up():
+        await device.connect(device.Mock_Driver, current_pattern, event_loop)
+        await websockets.connect('127.0.0.1', 6969, current_pattern, stop_event, event_loop)
 
-    event_loop.call_later(8, partial(current_pattern.update,
-                                     Pattern(float('inf'), [Stroke(0.1, 0.1), Stroke(0.2, 0.2), Stroke(0.3, 0.3)])))
-
-    event_loop.call_later(12, stop_event.set)
-
-    event_loop.create_task(device.connect(device.Mock_Driver, event_loop, current_pattern))
+    event_loop.run_until_complete(set_up())
 
     try:
         event_loop.run_forever()
