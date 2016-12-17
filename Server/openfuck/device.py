@@ -31,8 +31,6 @@ async def connect(Driver, current_pattern, stop_event, event_loop):
     async def stop():
         await stop_event.wait()
         loop_task.cancel()
-        for task in driver.tasks:
-            task.cancel()
 
     return stop()
 
@@ -50,8 +48,8 @@ class Base_Driver:
         self.loop = loop
         self._connected = asyncio.Event(loop=loop)
         self._connecting = False
-        self.wait = asyncio.Event(loop=loop)
-        self.tasks = {loop.create_task(self.wait.wait()), }
+        self._wait = asyncio.Event(loop=loop)
+        self._tasks = {loop.create_task(self._wait.wait()), }
         self.log = logger(self.__class__.__name__)
 
     async def connect(self):
@@ -85,10 +83,10 @@ class Base_Driver:
         Wait until device sends 'done moving' value, then return True, discarding any other values read.
         """
         read_task = self.loop.create_task(self.read())
-        self.tasks.add(read_task)
-        completed, pending = await asyncio.wait(self.tasks, loop=self.loop, return_when=asyncio.FIRST_COMPLETED)
+        self._tasks.add(read_task)
+        completed, pending = await asyncio.wait(self._tasks, loop=self.loop, return_when=asyncio.FIRST_COMPLETED)
         if read_task in completed:
-            self.tasks.remove(read_task)
+            self._tasks.remove(read_task)
             value = read_task.result()
             if value in self.done_values:
                 return True
@@ -96,15 +94,15 @@ class Base_Driver:
                 return await self.stroke_finished()
         else:
             read_task.cancel()
-            self.tasks.clear()
-            self.wait.clear()
-            self.tasks.add(self.loop.create_task(self.wait.wait()))
+            self._tasks.clear()
+            self._wait.clear()
+            self._tasks.add(self.loop.create_task(self._wait.wait()))
             return True
 
     async def write(self, action):
         if isinstance(action, Wait):
             self.log.debug("Waiting {}".format(action))
-            return self.loop.call_later(action.duration, self.wait.set)
+            return self.loop.call_later(action.duration, self._wait.set)
         self.log.debug('writing {}'.format(action))
         if not self._connected.is_set():
             await self.connect()
@@ -114,6 +112,8 @@ class Base_Driver:
         self._connected.clear()
         self._connecting = False
         self._close()
+        for task in self._tasks:
+            task.cancel()
         self.log.info('closed')
 
     async def _connect(self):
