@@ -3,16 +3,15 @@ __author__ = "riggs"
 import asyncio
 import sys
 
-import websockets
-
 sys.path.append('.')
 
-from openfuck import device, current_pattern, stop_event, event_loop
+from openfuck import device, current_pattern, stop_event, event_loop, websockets
+from openfuck.serial_drivers import Serial_Driver
 
 
 def main():
     async def set_up():
-        device_close = await device.connect(device.Mock_Driver, current_pattern, stop_event, event_loop)
+        device_close = await device.connect(Serial_Driver, current_pattern, stop_event, event_loop)
         websockets_close = await websockets.connect('127.0.0.1', 6969, current_pattern, stop_event, event_loop)
         return device_close, websockets_close
 

@@ -12,7 +12,7 @@ __author__ = "riggs"
 SWITCH = {'url': 'hwgrep:///dev/ttyACM0', 'baudrate': 115200}
 VALVES = {'url': 'hwgrep:///dev/ttyACM1', 'baudrate': 115200}
 
-log = logger('driver')
+log = logger('serial driver')
 
 
 @attr.s(frozen=True)
@@ -34,13 +34,15 @@ class Serial_Driver(Base_Driver):
         self.switch = None
         self.valves = None
         self.last_stroke = None
+        self.log = logger(self.__class__.__name__)
 
     async def _connect(self):
         self.switch = await Serial.connect(loop=self.loop, **SWITCH)
         self.valves = await Serial.connect(loop=self.loop, **VALVES)
 
     async def _read(self):
-        result = await self.switch.reader.read(1)[0]
+        result = (await self.switch.reader.read(1))[0]
+        self.log.debug("read {}".format(result))
         if result in (255, 254):
             return result
         else:
@@ -51,18 +53,23 @@ class Serial_Driver(Base_Driver):
         if self.last_stroke:
             offset = 0 if self.last_stroke.position > stroke.position else 101
             speed = bytes((int(stroke.speed * 100 + offset),))
+            self.log.debug("writing speed {}".format(speed))
             self.valves.writer.write(speed)
             await self.valves.writer.drain()
         else:  # First time, no last position
             speed = bytes((int(stroke.speed * 100),))
+            self.log.debug("writing speed {}".format(speed))
             self.valves.writer.write(speed)
             await self.valves.writer.drain()
             speed = bytes((int(stroke.speed * 100 + 101),))
+            self.log.debug("writing speed {}".format(speed))
             self.valves.writer.write(speed)
             await self.valves.writer.drain()
+        self.log.debug("writing position {}".format(position))
         self.switch.writer.write(position)
         await self.switch.writer.drain()
 
     def _close(self):
+        self.log.debug('closing')
         self.switch.writer.close()
         self.valves.writer.close()
