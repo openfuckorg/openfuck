@@ -104,6 +104,3 @@ def test():
         stop_event.set()
         event_loop.run_until_complete(asyncio.wait(stop_coros))
 
-
-if __name__ == "__main__":
-    test()
