@@ -44,8 +44,8 @@ async def connect(host, port, current_pattern, stop_event, event_loop):
                     log.debug("received: {}".format(data))
                     try:
                         new_pattern = current_pattern.deserialize(data)
-                    except (TypeError, ValueError):
-                        log.debug("invalid data")
+                    except (TypeError, ValueError) as error:
+                        log.debug("invalid data: {}".format(error))
                         continue
                     current_pattern.update(new_pattern)
                     log.debug("sending change to other clients")

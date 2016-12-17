@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 
 __author__ = "riggs"
-__all__ = ('Stroke', 'Sub_Pattern')
+__all__ = ('Wait', 'Stroke', 'Sub_Pattern')
 
 
 class Serializer:
@@ -65,6 +65,28 @@ class Stroke(Serializer):
         return cls(**dict_)
 
 
+class Wait(Serializer):
+
+    def __init__(self, duration):
+        self.duration = self._validate(duration)
+
+    @staticmethod
+    def _validate(value):
+        if not (0 < value < float('inf')):
+            raise ValueError("wait time must be between 0 and infinity")
+        return value
+
+    def __repr__(self):
+        return "{}(duration={})".format(self.__class__.__name__, self.duration)
+
+    def to_dict(self):
+        return {'duration': self.duration}
+
+    @classmethod
+    def from_dict(cls, dict_):
+        return cls(**dict_)
+
+
 class Sub_Pattern(Serializer):
 
     class Iterator:
@@ -82,19 +104,19 @@ class Sub_Pattern(Serializer):
             if self._cycle_count > self.cycles:
                 raise StopIteration
             thing = self.actions[self._actions_index]
-            if isinstance(thing, Stroke):
-                stroke = thing
+            if isinstance(thing, (Wait, Stroke)):
+                action = thing
                 self._actions_index += 1
             else:
                 if not getattr(thing, '__next__', None):
                     thing = self.actions[self._actions_index] = iter(thing)
                 try:
-                    stroke = thing.__next__()
+                    action = thing.__next__()
                 except StopIteration:
                     self.actions[self._actions_index] = self.original_actions[self._actions_index]
                     self._actions_index += 1
-                    stroke = self.__next__()
-            return stroke
+                    action = self.__next__()
+            return action
 
     def __init__(self, cycles, actions):
         self.cycles = self._validate_cycles(cycles)
@@ -112,8 +134,8 @@ class Sub_Pattern(Serializer):
     def _validate_actions(actions):
         if not isinstance(actions, Sequence) or \
                 not len(actions) or \
-                not all([isinstance(obj, (Stroke, Sub_Pattern)) for obj in actions]):
-            raise ValueError("actions must be a sequence of Strokes or Patterns")
+                not all([isinstance(obj, (Wait, Stroke, Sub_Pattern)) for obj in actions]):
+            raise ValueError("actions must be a sequence of Wait, Strokes or Patterns")
         return list(actions)
 
     def __repr__(self):

@@ -4,13 +4,13 @@ Simple API to handle all hardware communication.
 
 import asyncio
 
+from .data_model import Wait
 from .logger import logger
 
 __author__ = "riggs"
 
 
 async def connect(Driver, current_pattern, stop_event, event_loop):
-
     log = logger('device communication')
 
     driver = Driver(event_loop)
@@ -18,10 +18,10 @@ async def connect(Driver, current_pattern, stop_event, event_loop):
 
     async def loop():
         try:
-            async for stroke in current_pattern:
-                log.debug("writing {}".format(stroke))
-                await driver.write(stroke)
-                log.debug("waiting for stroke to finish")
+            async for action in current_pattern:
+                log.debug("writing {}".format(action))
+                await driver.write(action)
+                log.debug("waiting for action to finish")
                 await driver.stroke_finished()
         finally:
             driver.close()
@@ -31,6 +31,8 @@ async def connect(Driver, current_pattern, stop_event, event_loop):
     async def stop():
         await stop_event.wait()
         loop_task.cancel()
+        for task in driver.tasks:
+            task.cancel()
 
     return stop()
 
@@ -48,6 +50,8 @@ class Base_Driver:
         self.loop = loop
         self._connected = asyncio.Event(loop=loop)
         self._connecting = False
+        self.wait = asyncio.Event(loop=loop)
+        self.tasks = {loop.create_task(self.wait.wait()), }
         self.log = logger(self.__class__.__name__)
 
     async def connect(self):
@@ -80,17 +84,31 @@ class Base_Driver:
         """
         Wait until device sends 'done moving' value, then return True, discarding any other values read.
         """
-        value = await self.read()
-        if value in self.done_values:
-            return True
+        read_task = self.loop.create_task(self.read())
+        self.tasks.add(read_task)
+        completed, pending = await asyncio.wait(self.tasks, loop=self.loop, return_when=asyncio.FIRST_COMPLETED)
+        if read_task in completed:
+            self.tasks.remove(read_task)
+            value = read_task.result()
+            if value in self.done_values:
+                return True
+            else:
+                return await self.stroke_finished()
         else:
-            return await self.stroke_finished()
+            read_task.cancel()
+            self.tasks.clear()
+            self.wait.clear()
+            self.tasks.add(self.loop.create_task(self.wait.wait()))
+            return True
 
-    async def write(self, stroke):
-        self.log.debug('writing {}'.format(stroke))
+    async def write(self, action):
+        if isinstance(action, Wait):
+            self.log.debug("Waiting {}".format(action))
+            return self.loop.call_later(action.duration, self.wait.set)
+        self.log.debug('writing {}'.format(action))
         if not self._connected.is_set():
             await self.connect()
-        await self._write(stroke)
+        await self._write(action)
 
     def close(self):
         self._connected.clear()
@@ -112,7 +130,6 @@ class Base_Driver:
 
 
 class Mock_Driver(Base_Driver):
-
     done_values = [True]
 
     def __init__(self, loop):
