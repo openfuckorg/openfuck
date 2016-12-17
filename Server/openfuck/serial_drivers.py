@@ -51,7 +51,7 @@ class Serial_Driver(Base_Driver):
     async def _write(self, stroke):
         position = bytes((int(stroke.position * 255),))
         if self.last_stroke:
-            offset = 0 if self.last_stroke.position > stroke.position else 101
+            offset = 0 if self.last_stroke.position < stroke.position else 101
             speed = bytes((int(stroke.speed * 100 + offset),))
             self.log.debug("writing speed {}".format(speed))
             self.valves.writer.write(speed)
