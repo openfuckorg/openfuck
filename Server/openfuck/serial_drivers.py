@@ -68,6 +68,7 @@ class Serial_Driver(Base_Driver):
         self.log.debug("writing position {}".format(position))
         self.switch.writer.write(position)
         await self.switch.writer.drain()
+        self.last_stroke = stroke
 
     def _close(self):
         self.log.debug('closing')
