@@ -80,27 +80,3 @@ current_pattern = Master_Pattern(running=False, cycles=1, actions=(Stroke(positi
 
 # This file basically just creates the shared data objects then adds everything to the event_loop and runs it.
 
-def test():
-    # from functools import partial
-    #
-    # event_loop.call_later(0, partial(current_pattern.update, Sub_Pattern(2, [Stroke(.69, .69), Stroke(.42, .42)])))
-    #
-    # event_loop.call_later(8, partial(current_pattern.update,
-    #                                  Sub_Pattern(float('inf'), [Stroke(0.1, 0.1), Stroke(0.2, 0.2), Stroke(0.3, 0.3)])))
-    #
-    # event_loop.call_later(12, stop_event.set)
-
-    async def set_up():
-        device_close = await device.connect(device.Mock_Driver, current_pattern, stop_event, event_loop)
-        websockets_close = await websockets.connect('127.0.0.1', 6969, current_pattern, stop_event, event_loop)
-        return device_close, websockets_close
-
-    stop_coros = event_loop.run_until_complete(set_up())
-
-    try:
-        event_loop.run_forever()
-    except KeyboardInterrupt:
-        # Cleanup.
-        stop_event.set()
-        event_loop.run_until_complete(asyncio.wait(stop_coros))
-
