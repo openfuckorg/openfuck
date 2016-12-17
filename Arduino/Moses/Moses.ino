@@ -77,7 +77,7 @@ void loop() {
     delay(10);
     input = Position;
     //Serial.println(Position);
-    Serial.write(255);
+    //Serial.write(255);
   }
 
 
@@ -137,7 +137,7 @@ void loop() {
     digitalWrite(forward, LOW);
     digitalWrite(backward, LOW);
     //Serial.println(Position);
-    Serial.write(254);
+    //Serial.write(254);
   }
 }
 
