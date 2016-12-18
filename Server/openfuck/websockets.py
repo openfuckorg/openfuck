@@ -57,6 +57,8 @@ async def connect(host, port, motion_controller, stop_event, event_loop, **kwarg
                             thing.stroke = motion_controller.current_stroke
                         event_loop.create_task(websocket.send(thing.serialize()))
                         continue
+                    if thing == motion_controller.pattern:  # No difference, don't reset iteration.
+                        continue
                     motion_controller.update(thing)
                     log.debug("sending change to other clients")
                     for client in clients - {websocket, }:
