@@ -98,3 +98,20 @@ A received `stroke` value of `null` means that the current pattern has run out a
 ###### Received:
 
 `{"stroke": {"speed": 0.69, "position": 0.69}, "pattern": {"cycles": 5, "motions": [{"speed": 0.69, "position": 0.69}, {"duration": 1}, {"speed": 0.42, "position": 0.42}]}}`
+
+Example JavaScript commands
+---------------------------
+
+Run these from a browser console.
+
+#### Connect and log messages:
+
+`websocket = new WebSocket("ws://localhost:6969", "openfuck");`
+
+`websocket.onmessage = (message) => console.log(message.data);`
+
+#### Send commands:
+
+`websocket.send('{"cycles": 5, "motions": [{"position": 0.69, "speed": 0.69}, {"duration": 1}, {"position": 0.42, "speed": 0.42}]}')`
+
+`websocket.send('{"pattern": true, "stroke": true}')`
