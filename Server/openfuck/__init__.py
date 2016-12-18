@@ -3,16 +3,15 @@ The Master of Control
 """
 import asyncio
 
-from . import data_model
 from . import device
-from . import serial_drivers
 from . import websockets
 from .data_model import *
+from .drivers import *
 from .logger import logger
 
 __author__ = "riggs"
 
-__all__ = ("set_up", "Motion_Controller") + serial_drivers.__all__ + data_model.__all__
+__all__ = ("set_up", "Motion_Controller") + drivers.__all__ + data_model.__all__
 
 
 class Motion_Controller:
@@ -23,7 +22,7 @@ class Motion_Controller:
         self.pattern = pattern
         self.iterable = iter(self.pattern)
         self.updated = asyncio.Event()
-        self.tasks = {self.stop_task,}
+        self.tasks = {self.stop_task, }
         self.current_stroke = None
         self.log = logger(self.__class__.__name__)
 
@@ -60,7 +59,7 @@ class Motion_Controller:
             task.cancel()
 
 
-def set_up(host, port, driver, stop_event=None, event_loop=None, **kwargs):
+def set_up(host, port, driver, stop_event=None, event_loop=None, driver_kwargs={}, websocket_kwargs={}):
     """
     Connect to the hardware, create the websockets server and connect them.
 
@@ -69,7 +68,8 @@ def set_up(host, port, driver, stop_event=None, event_loop=None, **kwargs):
     :param driver: Hardware driver to use for hardware connection.
     :param stop_event: Setting the flag on this event will cause the server to shut down and clean.
     :param event_loop: Event loop which controls execution.
-    :param kwargs: Additional arguments passed through to the driver and websockets server (e.g. for configuring TLS).
+    :param driver_kwargs: Additional arguments passed through to the driver (e.g. for configuring ports).
+    :param websocket_kwargs: Additional arguments passed through to the websockets server (e.g. for configuring TLS).
     :type host: str
     :type stop_event: asyncio.Event
     :type event_loop: asyncio.AbstractEventLoop
@@ -82,8 +82,9 @@ def set_up(host, port, driver, stop_event=None, event_loop=None, **kwargs):
                                           pattern=Pattern(cycles=5, motions=(Wait(duration=3),)))
 
     async def start():
-        device_close = await device.connect(driver, motion_controller, stop_event, event_loop, **kwargs)
-        websockets_close = await websockets.connect(host, port, motion_controller, stop_event, event_loop, **kwargs)
+        device_close = await device.connect(driver, motion_controller, stop_event, event_loop, **driver_kwargs)
+        websockets_close = await websockets.connect(host, port, motion_controller, stop_event, event_loop,
+                                                    **websocket_kwargs)
         return {device_close, websockets_close}
 
     stop_coros = event_loop.run_until_complete(start())
