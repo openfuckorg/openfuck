@@ -5,24 +5,20 @@ import sys
 
 sys.path.append('.')
 
-from openfuck import device, current_pattern, stop_event, event_loop, websockets
-from openfuck.serial_drivers import Serial_Driver
+from openfuck import *
 
 
 def main():
-    async def set_up():
-        device_close = await device.connect(Serial_Driver, current_pattern, stop_event, event_loop)
-        websockets_close = await websockets.connect('127.0.0.1', 6969, current_pattern, stop_event, event_loop)
-        return device_close, websockets_close
+    event_loop = asyncio.get_event_loop()
+    stop_event = asyncio.Event(loop=event_loop)
 
-    stop_coros = event_loop.run_until_complete(set_up())
+    set_up(host='127.0.0.1', port=6969, driver=Serial_Driver, stop_event=stop_event, event_loop=event_loop)
 
     try:
         event_loop.run_forever()
     except KeyboardInterrupt:
         # Cleanup.
         stop_event.set()
-        event_loop.run_until_complete(asyncio.wait(stop_coros))
 
 
 if __name__ == "__main__":

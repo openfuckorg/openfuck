@@ -3,15 +3,15 @@ Library for running the OpenFUCK sex robot.
 """
 
 import json
+import numbers
 from collections.abc import Sequence
 
-
 __author__ = "riggs"
-__all__ = ('Wait', 'Stroke', 'Sub_Pattern')
+
+__all__ = ("Stroke", "Wait", "Pattern", "serialize", "deserialize")
 
 
-class Serializer:
-
+class Serialized:
     def __eq__(self, other):
         if isinstance(other, self.__class__) and \
                         self.to_dict() == other.to_dict():
@@ -24,7 +24,7 @@ class Serializer:
 
     @classmethod
     def from_dict(cls, dict_):
-        if cls is not Serializer:   # Not overwritten in subclass
+        if cls not in (Serialized, Motion):  # Not overwritten in subclass
             raise NotImplementedError
         for klass in cls.__subclasses__():
             try:
@@ -42,8 +42,11 @@ class Serializer:
         return cls.from_dict(json.loads(data))
 
 
-class Stroke(Serializer):
+class Motion(Serialized):
+    pass
 
+
+class Stroke(Motion):
     def __init__(self, position, speed):
         self.position = self._validate(position)
         self.speed = self._validate(speed)
@@ -65,8 +68,7 @@ class Stroke(Serializer):
         return cls(**dict_)
 
 
-class Wait(Serializer):
-
+class Wait(Motion):
     def __init__(self, duration):
         self.duration = self._validate(duration)
 
@@ -87,70 +89,89 @@ class Wait(Serializer):
         return cls(**dict_)
 
 
-class Sub_Pattern(Serializer):
-
+class Pattern(Motion):
     class Iterator:
         def __init__(self, pattern):
             self.cycles = pattern.cycles
-            self.original_actions = tuple(pattern.actions)
-            self.actions = list(pattern.actions)
+            self.motions = pattern.motions
+            self.iterator = None
             self._cycle_count = 1
-            self._actions_index = 0
+            self._motions_index = 0
 
         def __next__(self):
-            if self._actions_index >= len(self.actions):
+            if self._motions_index >= len(self.motions):
                 self._cycle_count += 1
-                self._actions_index = 0
+                self._motions_index = 0
             if self._cycle_count > self.cycles:
                 raise StopIteration
-            thing = self.actions[self._actions_index]
-            if isinstance(thing, (Wait, Stroke)):
-                action = thing
-                self._actions_index += 1
-            else:
-                if not getattr(thing, '__next__', None):
-                    thing = self.actions[self._actions_index] = iter(thing)
-                try:
-                    action = thing.__next__()
-                except StopIteration:
-                    self.actions[self._actions_index] = self.original_actions[self._actions_index]
-                    self._actions_index += 1
-                    action = self.__next__()
-            return action
+            if self.iterator is None:
+                motion = self.motions[self._motions_index]
+                if getattr(motion, '__iter__', None) is None:
+                    self._motions_index += 1
+                    return motion
+                else:
+                    self.iterator = iter(motion)
+            try:
+                return self.iterator.__next__()
+            except StopIteration:
+                self.iterator = None
+                self._motions_index += 1
+                return self.__next__()
 
-    def __init__(self, cycles, actions):
+    def __init__(self, cycles, motions):
         self.cycles = self._validate_cycles(cycles)
-        self.actions = self._validate_actions(actions)
+        self.motions = self._validate_motions(motions)
 
     @staticmethod
     def _validate_cycles(cycles):
-        if cycles == float('inf'):
-            raise ValueError("sub-patterns cannot cycle forever")
-        if not cycles > 0:
-            raise ValueError("cycles must be greater than 0")
+        if not (isinstance(cycles, numbers.Number) and cycles >= 0):
+            raise ValueError("cycles must be a positive integer")
         return cycles
 
     @staticmethod
-    def _validate_actions(actions):
-        if not isinstance(actions, Sequence) or \
-                not len(actions) or \
-                not all([isinstance(obj, (Wait, Stroke, Sub_Pattern)) for obj in actions]):
-            raise ValueError("actions must be a sequence of Wait, Strokes or Patterns")
-        return list(actions)
+    def _validate_motions(motions, motion_classes=tuple(Motion.__subclasses__())):
+        if not isinstance(motions, Sequence) or \
+                not len(motions) or \
+                not all([isinstance(obj, motion_classes) for obj in motions]):
+            raise ValueError("motions must be a sequence of {} objects".format(
+                                                            ', '.join(cls.__name__ for cls in motion_classes)))
+        return tuple(motions)
 
     def __repr__(self):
-        return "{}(cycles={}, actions={}".format(self.__class__.__name__, self.cycles, self.actions)
+        return "{}(cycles={}, motions={}".format(self.__class__.__name__, self.cycles, self.motions)
 
     def __iter__(self):
         return self.Iterator(self)
 
     def to_dict(self):
-        return {'cycles': self.cycles, 'actions': [action.to_dict() for action in self.actions]}
+        return {'cycles': self.cycles, 'motions': [motion.to_dict() for motion in self.motions]}
 
     @classmethod
     def from_dict(cls, dict_):
         try:
-            dict_['actions'] = [Serializer.from_dict(action) for action in dict_['actions']]
+            dict_['motions'] = [Serialized.from_dict(motion) for motion in dict_['motions']]
         except KeyError:
-            raise TypeError("missing keyword argument 'actions'")
+            raise TypeError("missing keyword argument 'motions'")
         return cls(**dict_)
+
+
+class Query(Serialized):
+    def __init__(self, query=True):
+        self.query = query
+
+    def to_dict(self):
+        return {"query": self.query}
+
+    @classmethod
+    def from_dict(cls, dict_):
+        return cls(**dict_)
+
+
+def serialize(obj):
+    if hasattr(obj, 'serialize'):
+        raise TypeError("invalid type: {}".format(type(obj)))
+    return obj.serialize()
+
+
+def deserialize(data):
+    return Serialized.deserialize(data)

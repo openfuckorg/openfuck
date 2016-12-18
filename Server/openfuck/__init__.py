@@ -1,98 +1,104 @@
 """
 The Master of Control
 """
-
 import asyncio
 
+from . import data_model
 from . import device
+from . import serial_drivers
 from . import websockets
 from .data_model import *
 from .logger import logger
 
 __author__ = "riggs"
 
-event_loop = asyncio.get_event_loop()
-
-stop_event = asyncio.Event(loop=event_loop)
+__all__ = ("set_up", "Motion_Controller") + serial_drivers.__all__ + data_model.__all__
 
 
-class Master_Pattern(Sub_Pattern):
-    def __init__(self, *args, running=True, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.running = running
+class Motion_Controller:
+    def __init__(self, stop_event, event_loop=None, pattern=Pattern(cycles=1, motions=(Wait(duration=2 ** 32 - 1),))):
+        self.loop = event_loop if event_loop is not None else asyncio.get_event_loop()
+        self.stop_event = stop_event
+        self.stop_task = self.loop.create_task(self.stop_event.wait())
+        self.pattern = pattern
+        self.iterable = iter(self.pattern)
         self.updated = asyncio.Event()
-        self.iterable = iter(self)
+        self.tasks = {self.stop_task,}
         self.log = logger(self.__class__.__name__)
-
-    @staticmethod
-    def _validate_cycles(cycles):
-        if not cycles > 0:
-            raise ValueError("cycles must be greater than 0")
-        return cycles
 
     def update(self, pattern):
         self.log.debug("Updating to {}".format(pattern))
-        if isinstance(pattern, dict):
-            return self.update(self.from_dict(pattern))
-        self.cycles = pattern.cycles
-        self.running = pattern.running
-        self.actions = pattern.actions
-        self.iterable = iter(self)
+        self.pattern = pattern
+        self.iterable = iter(pattern)
         self.updated.set()
-
-    def __repr__(self):
-        return "{}(cycles={}, running={}, actions={}".format(self.__class__.__name__, self.cycles, self.running,
-                                                             self.actions)
 
     def __aiter__(self):
         return self
 
     async def __anext__(self):
-        if stop_event.is_set():
+        if self.stop_event.is_set():
             raise StopAsyncIteration
         try:
-            if not self.running:
-                self.updated.clear()  # Clear event to wait for update.
-                raise StopIteration
-            stroke = self.iterable.__next__()
-            self.updated.clear()
-            return stroke
+            return self.iterable.__next__()
         except StopIteration:
-            self.log.debug("{}, waiting for update".format("Sub_Pattern expended" if self.running else "not running"))
+            self.log.debug("Pattern expended, waiting for update")
             # If updated event is triggered first, clear flag and loop recurse to get first Stroke from new pattern.
             # If stop event is triggered first, recurse and StopAsyncIteration will be called because flag is set.
-            completed, pending = await asyncio.wait([self.updated.wait(), stop_event.wait()],
-                                                    loop=event_loop, return_when=asyncio.FIRST_COMPLETED)
-            for task in pending:  # Clean up after yourself.
-                task.cancel()
-            self.updated.clear()
+            update_task = self.loop.create_task(self.updated.wait())
+            self.tasks.add(update_task)
+            completed, pending = await asyncio.wait(self.tasks, loop=self.loop, return_when=asyncio.FIRST_COMPLETED)
+            self.tasks -= completed
+            self.updated.clear()  # If stop was triggered, this has no effect, anyway.
             return await self.__anext__()
 
+    async def stop(self):
+        await self.stop_event.wait()
+        for task in self.tasks:
+            task.cancel()
 
-current_pattern = Master_Pattern(running=False, cycles=1, actions=(Stroke(position=0, speed=0.5),))
 
+def set_up(host, port, driver, stop_event=None, event_loop=None, **kwargs):
+    """
+    Connect to the hardware, create the websockets server and connect them.
 
-# Device object/loop/thing and websockets server are given event_loop, stop_event and current_pattern.
-# Device is also given Driver object to use (this easily allows for multiple hardware).
-# Server updates current_pattern and sets the current_pattern.updated event flag.
-# Device waits for flag, updates its next Stroke pointer. (Parse pattern as depth-first tree transversal + cycles)
-# Device listens for done moving signal, sends next Stroke.
+    :param host: Internet host to connect to and listen for new websockets connections.
+    :param port: Port to listen on.
+    :param driver: Hardware driver to use for hardware connection.
+    :param stop_event: Setting the flag on this event will cause the server to shut down and clean.
+    :param event_loop: Event loop which controls execution.
+    :param kwargs: Additional arguments passed through to the driver and websockets server (e.g. for configuring TLS).
+    :type host: str
+    :type stop_event: asyncio.Event
+    :type event_loop: asyncio.AbstractEventLoop
+    :return: A clean-up coroutine. Pass to event_loop.run_until_complete after calling stop_event.set().
+    """
+    if event_loop is None:
+        event_loop = asyncio.get_event_loop()
 
-# This file basically just creates the shared data objects then adds everything to the event_loop and runs it.
+    motion_controller = Motion_Controller(event_loop=event_loop, stop_event=stop_event,
+                                          pattern=Pattern(cycles=5, motions=(Wait(duration=3),)))
+
+    async def start():
+        device_close = await device.connect(driver, motion_controller, stop_event, event_loop, **kwargs)
+        websockets_close = await websockets.connect(host, port, motion_controller, stop_event, event_loop, **kwargs)
+        return {device_close, websockets_close}
+
+    stop_coros = event_loop.run_until_complete(start())
+    stop_coros.add(motion_controller.stop())
+
+    return asyncio.wait(stop_coros)
+
 
 def test():
+    event_loop = asyncio.get_event_loop()
+    stop_event = asyncio.Event(loop=event_loop)
 
-    async def set_up():
-        device_close = await device.connect(device.Mock_Driver, current_pattern, stop_event, event_loop)
-        websockets_close = await websockets.connect('127.0.0.1', 6969, current_pattern, stop_event, event_loop)
-        return device_close, websockets_close
-
-    stop_coros = event_loop.run_until_complete(set_up())
+    clean_up = set_up(host='127.0.0.1', port=6969, driver=device.Mock_Driver,
+                      stop_event=stop_event, event_loop=event_loop)
 
     try:
         event_loop.run_forever()
     except KeyboardInterrupt:
         # Cleanup.
         stop_event.set()
-        event_loop.run_until_complete(asyncio.wait(stop_coros))
-
+        event_loop.run_until_complete(clean_up)

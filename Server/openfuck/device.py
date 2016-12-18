@@ -10,18 +10,18 @@ from .logger import logger
 __author__ = "riggs"
 
 
-async def connect(Driver, current_pattern, stop_event, event_loop):
+async def connect(Driver, motion_controller, stop_event, event_loop, **kwargs):
     log = logger('device communication')
 
-    driver = Driver(event_loop)
+    driver = Driver(event_loop, **kwargs)
     await driver.connect()
 
     async def loop():
         try:
-            async for action in current_pattern:
-                log.debug("writing {}".format(action))
-                await driver.write(action)
-                log.debug("waiting for action to finish")
+            async for motion in motion_controller:
+                log.debug("writing {}".format(motion))
+                await driver.write(motion)
+                log.debug("waiting for motion to finish")
                 await driver.stroke_finished()
         finally:
             driver.close()
@@ -44,12 +44,13 @@ class Base_Driver:
 
     done_values = []
 
-    def __init__(self, loop):
+    def __init__(self, loop, **kwargs):
         self.loop = loop
         self._connected = asyncio.Event(loop=loop)
         self._connecting = False
         self._wait = asyncio.Event(loop=loop)
         self._tasks = {loop.create_task(self._wait.wait()), }
+        self._read_task = None
         self.log = logger(self.__class__.__name__)
 
     async def connect(self):
@@ -67,6 +68,8 @@ class Base_Driver:
             self.log.debug('waiting for connection')
             await self._connected.wait()
             self.log.debug('connection ready')
+        self._read_task = self.loop.create_task(self.read())
+        self._tasks.add(self._read_task)
 
     async def read(self):
         """
@@ -82,31 +85,29 @@ class Base_Driver:
         """
         Wait until device sends 'done moving' value, then return True, discarding any other values read.
         """
-        read_task = self.loop.create_task(self.read())
-        self._tasks.add(read_task)
         completed, pending = await asyncio.wait(self._tasks, loop=self.loop, return_when=asyncio.FIRST_COMPLETED)
-        if read_task in completed:
-            self._tasks.remove(read_task)
-            value = read_task.result()
+        self._tasks -= completed
+        if self._read_task in completed:
+            value = self._read_task.result()
+            self._read_task = self.loop.create_task(self.read())
+            self._tasks.add(self._read_task)
             if value in self.done_values:
                 return True
             else:
                 return await self.stroke_finished()
         else:
-            read_task.cancel()
-            self._tasks.clear()
             self._wait.clear()
             self._tasks.add(self.loop.create_task(self._wait.wait()))
             return True
 
-    async def write(self, action):
-        if isinstance(action, Wait):
-            self.log.debug("Waiting {}".format(action))
-            return self.loop.call_later(action.duration, self._wait.set)
-        self.log.debug('writing {}'.format(action))
+    async def write(self, motion):
+        if isinstance(motion, Wait):
+            self.log.debug("Waiting {}".format(motion))
+            return self.loop.call_later(motion.duration, self._wait.set)
+        self.log.debug('writing {}'.format(motion))
         if not self._connected.is_set():
             await self.connect()
-        await self._write(action)
+        await self._write(motion)
 
     def close(self):
         self._connected.clear()

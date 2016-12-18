@@ -2,12 +2,13 @@
 Hardware drivers used by device.py
 """
 import attr
+from serial_asyncio import open_serial_connection
 
 from .device import Base_Driver
 from .logger import logger
-from serial_asyncio import open_serial_connection
 
 __author__ = "riggs"
+__all__ = ('Serial_Driver', 'SWITCH', 'VALVES')
 
 SWITCH = {'url': 'hwgrep:///dev/ttyACM0', 'baudrate': 115200}
 VALVES = {'url': 'hwgrep:///dev/ttyACM1', 'baudrate': 115200}
@@ -29,16 +30,18 @@ class Serial:
 class Serial_Driver(Base_Driver):
     done_values = [254, 255]
 
-    def __init__(self, loop):
+    def __init__(self, loop, switch=SWITCH, valves=VALVES):
         super().__init__(loop)
+        self.SWITCH = SWITCH
+        self.VALVES = VALVES
         self.switch = None
         self.valves = None
         self.last_stroke = None
         self.log = logger(self.__class__.__name__)
 
     async def _connect(self):
-        self.switch = await Serial.connect(loop=self.loop, **SWITCH)
-        self.valves = await Serial.connect(loop=self.loop, **VALVES)
+        self.switch = await Serial.connect(loop=self.loop, **self.SWITCH)
+        self.valves = await Serial.connect(loop=self.loop, **self.VALVES)
 
     async def _read(self):
         result = (await self.switch.reader.read(1))[0]
