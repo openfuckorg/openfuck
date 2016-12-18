@@ -24,6 +24,7 @@ class Motion_Controller:
         self.iterable = iter(self.pattern)
         self.updated = asyncio.Event()
         self.tasks = {self.stop_task,}
+        self.current_stroke = None
         self.log = logger(self.__class__.__name__)
 
     def update(self, pattern):
@@ -39,8 +40,10 @@ class Motion_Controller:
         if self.stop_event.is_set():
             raise StopAsyncIteration
         try:
-            return self.iterable.__next__()
+            self.current_stroke = self.iterable.__next__()
+            return self.current_stroke
         except StopIteration:
+            self.current_stroke = None
             self.log.debug("Pattern expended, waiting for update")
             # If updated event is triggered first, clear flag and loop recurse to get first Stroke from new pattern.
             # If stop event is triggered first, recurse and StopAsyncIteration will be called because flag is set.

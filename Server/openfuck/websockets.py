@@ -46,14 +46,18 @@ async def connect(host, port, motion_controller, stop_event, event_loop, **kwarg
                         listener_task = None
                     log.debug("received: {}".format(data))
                     try:
-                        new_pattern = deserialize(data)
+                        thing = deserialize(data)
                     except (TypeError, ValueError) as error:
                         log.debug("invalid data: {}, {}".format(type(error), error))
                         continue
-                    if isinstance(new_pattern, Query):
-                        event_loop.create_task(websocket.send(motion_controller.pattern.serialize()))
+                    if isinstance(thing, Query):
+                        if thing.pattern:
+                            thing.pattern = motion_controller.pattern
+                        if thing.stroke:
+                            thing.stroke = motion_controller.current_stroke
+                        event_loop.create_task(websocket.send(thing.serialize()))
                         continue
-                    motion_controller.update(new_pattern)
+                    motion_controller.update(thing)
                     log.debug("sending change to other clients")
                     for client in clients - {websocket, }:
                         event_loop.create_task(client.send(data))

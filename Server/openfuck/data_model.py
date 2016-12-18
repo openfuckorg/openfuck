@@ -3,12 +3,15 @@ Library for running the OpenFUCK sex robot.
 """
 
 import json
-import numbers
 from collections.abc import Sequence
 
 __author__ = "riggs"
 
 __all__ = ("Stroke", "Wait", "Pattern", "serialize", "deserialize")
+
+
+def repr_params(dict_):
+    return ', '.join("{}={}".format(key, repr(value)) for key, value in dict_.items())
 
 
 class Serialized:
@@ -18,6 +21,9 @@ class Serialized:
             return True
         else:
             return False
+
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, repr_params(self.__dict__))
 
     def to_dict(self):
         raise NotImplementedError
@@ -57,11 +63,8 @@ class Stroke(Motion):
             raise ValueError("value must be between 0 and 1 (inclusive).")
         return value
 
-    def __repr__(self):
-        return "{}(position={}, speed={})".format(self.__class__.__name__, self.position, self.speed)
-
     def to_dict(self):
-        return {'position': self.position, 'speed': self.speed}
+        return self.__dict__.copy()
 
     @classmethod
     def from_dict(cls, dict_):
@@ -78,11 +81,8 @@ class Wait(Motion):
             raise ValueError("wait time must be between 0 and infinity")
         return value
 
-    def __repr__(self):
-        return "{}(duration={})".format(self.__class__.__name__, self.duration)
-
     def to_dict(self):
-        return {'duration': self.duration}
+        return self.__dict__.copy()
 
     @classmethod
     def from_dict(cls, dict_):
@@ -124,8 +124,14 @@ class Pattern(Motion):
 
     @staticmethod
     def _validate_cycles(cycles):
-        if not (isinstance(cycles, numbers.Number) and cycles >= 0):
-            raise ValueError("cycles must be a positive integer")
+        if not isinstance(cycles, int):
+            try:
+                cycles = float(cycles)
+                cycles = int(cycles) if cycles != float('Infinity') else cycles
+            except ValueError:
+                raise ValueError("cycles must be a positive integer or Infinity")
+        if not cycles >= 0:
+            raise ValueError("cycles must be a positive integer or Infinity")
         return cycles
 
     @staticmethod
@@ -136,9 +142,6 @@ class Pattern(Motion):
             raise ValueError("motions must be a sequence of {} objects".format(
                                                             ', '.join(cls.__name__ for cls in motion_classes)))
         return tuple(motions)
-
-    def __repr__(self):
-        return "{}(cycles={}, motions={}".format(self.__class__.__name__, self.cycles, self.motions)
 
     def __iter__(self):
         return self.Iterator(self)
@@ -156,11 +159,13 @@ class Pattern(Motion):
 
 
 class Query(Serialized):
-    def __init__(self, query=True):
-        self.query = query
+    def __init__(self, pattern=False, stroke=False):
+        self.pattern = pattern
+        self.stroke = stroke
 
     def to_dict(self):
-        return {"query": self.query}
+        return dict((key, value.to_dict() if hasattr(value, 'to_dict') else value)
+                    for key, value in self.__dict__.items())
 
     @classmethod
     def from_dict(cls, dict_):
