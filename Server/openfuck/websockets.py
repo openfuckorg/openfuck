@@ -17,33 +17,30 @@ log = logger('websockets')
 
 async def connect(host, port, motion_controller, stop_event, event_loop, **kwargs):
     stop_task = event_loop.create_task(stop_event.wait())
-    listener_task = None
+    all_tasks = []
 
     async def handler(websocket, path):
         """"
         Called once per open connection.
         """
-        nonlocal listener_task
+        tasks = {stop_task, }
+        all_tasks.append(tasks)
         log = logger("websocket:{}:{}".format(id(websocket), path))
         log.debug("connected")
         clients.add(websocket)
         try:
             while not stop_event.is_set():
-                listener_task = event_loop.create_task(websocket.recv())
-                completed, pending = await asyncio.wait([listener_task, stop_task],
-                                                        loop=event_loop, return_when=asyncio.FIRST_COMPLETED)
+                tasks.add(event_loop.create_task(websocket.recv()))
+                completed, pending = await asyncio.wait(tasks, loop=event_loop, return_when=asyncio.FIRST_COMPLETED)
+                tasks -= completed
                 if stop_task in completed:
-                    listener_task.cancel()
                     log.debug("stopping")
                     break
-
-                if listener_task in completed:
+                else:
                     try:
-                        data = listener_task.result()
+                        data = completed.pop().result()
                     except websockets.exceptions.ConnectionClosed:
                         break
-                    finally:
-                        listener_task = None
                     log.debug("received: {}".format(data))
                     try:
                         thing = deserialize(data)
@@ -74,8 +71,8 @@ async def connect(host, port, motion_controller, stop_event, event_loop, **kwarg
     async def stop():
         await stop_event.wait()
         log.debug("closing")
-        if listener_task is not None:
-            listener_task.cancel()
+        for task in set.union(*all_tasks):
+            task.cancel()
         server = server_task.result()
         stop_task.cancel()
         server.close()
