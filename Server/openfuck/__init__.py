@@ -97,7 +97,7 @@ def test():
     event_loop = asyncio.get_event_loop()
     stop_event = asyncio.Event(loop=event_loop)
 
-    clean_up = set_up(host='127.0.0.1', port=6969, driver=device.Mock_Driver,
+    clean_up = set_up(host='127.0.0.1', port=6969, driver=Mock_Driver,
                       stop_event=stop_event, event_loop=event_loop)
 
     try:

@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import sys
+import serial
 
 sys.path.append('.')
 
@@ -8,7 +9,7 @@ from openfuck import *
 
 __author__ = "riggs"
 
-def serial(arg):
+def _serial(arg):
     try:
         return {'baudrate': int(arg)}
     except ValueError:
@@ -23,9 +24,9 @@ parser.add_argument("--mock", help="Use Mock driver (testing or development)", a
                     const=Mock_Driver)
 group = parser.add_argument_group("Serial Options", "Configure path and baud rate for serial connections")
 group.add_argument("--switch", help="path to serial device and baud rate for solenoid-driven switch", nargs="*",
-                   type=serial)
+                   type=_serial)
 group.add_argument("--valves", help="path to serial device and baud rate for flow control valves", nargs="*",
-                   type=serial)
+                   type=_serial)
 
 
 def main(host='127.0.0.1', port=6969, driver=Serial_Driver, **kwargs):
@@ -58,4 +59,9 @@ if __name__ == "__main__":
         else:
             kwargs[key] = value
 
-    main(**kwargs)
+    try:
+        main(**kwargs)
+    except serial.serialutil.SerialException as e:
+        for task in asyncio.Task.all_tasks():
+            task.cancel()
+        parser.error("Invalid serial port: {!s}".format(e))
