@@ -90,7 +90,15 @@ class Wait(Motion):
 
 
 class Pattern(Motion):
+    """
+    Patterns are a sequence of Motions or Patterns that repeat a given number of times.
+    """
     class Iterator:
+        """
+        Create a depth-first iterator of a given pattern.
+
+        Recursively creates nested iterators of sub-patterns as appropriate.
+        """
         def __init__(self, pattern):
             self.cycles = pattern.cycles
             self.motions = pattern.motions
@@ -99,12 +107,12 @@ class Pattern(Motion):
             self._motions_index = 0
 
         def __next__(self):
-            if self._motions_index >= len(self.motions):
+            if self._motions_index >= len(self.motions):    # Reached the end of the sequence, loop around.
                 self._cycle_count += 1
                 self._motions_index = 0
             if self._cycle_count > self.cycles:
                 raise StopIteration
-            if self.iterator is None:
+            if self.iterator is None:   # Not currently in a nested iterator.
                 motion = self.motions[self._motions_index]
                 if getattr(motion, '__iter__', None) is None:
                     self._motions_index += 1

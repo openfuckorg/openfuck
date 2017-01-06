@@ -15,7 +15,7 @@ clients = set()
 log = logger('websockets')
 
 
-async def connect(host, port, motion_controller, stop_event, event_loop, **kwargs):
+async def connect(host, port, motion_controller, stop_event, event_loop, **websockets_kwargs):
     stop_task = event_loop.create_task(stop_event.wait())
     all_tasks = []
 
@@ -64,7 +64,7 @@ async def connect(host, port, motion_controller, stop_event, event_loop, **kwarg
         finally:
             clients.remove(websocket)
 
-    server_coro = websockets.serve(handler, host, port, subprotocols=['openfuck'], **kwargs)
+    server_coro = websockets.serve(handler, host, port, subprotocols=['openfuck'], **websockets_kwargs)
     log.debug("crated server listening on {}:{}".format(host, port))
     server_task = event_loop.create_task(server_coro)
 

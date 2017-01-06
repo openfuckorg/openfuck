@@ -1,7 +1,7 @@
 import asyncio
 
-from .logger import logger
-from .data_model import Wait
+from ..logger import logger
+from ..data_model import Wait
 
 __author__ = "riggs"
 
@@ -13,7 +13,7 @@ class Base_Driver:
     Subclass and implement _connect, _read, _write, and _close, and define done_values.
     """
 
-    done_values = []
+    done_values = NotImplemented
 
     def __init__(self, loop, **kwargs):
         self.loop = loop
@@ -52,7 +52,7 @@ class Base_Driver:
         self.log.debug('reading')
         return await self._read()
 
-    async def stroke_finished(self):
+    async def motion_finished(self):
         """
         Wait until device sends 'done moving' value, then return True, discarding any other values read.
         """
@@ -65,7 +65,7 @@ class Base_Driver:
             if value in self.done_values:
                 return True
             else:
-                return await self.stroke_finished()
+                return await self.motion_finished()
         else:
             self._wait.clear()
             self._tasks.add(self.loop.create_task(self._wait.wait()))
