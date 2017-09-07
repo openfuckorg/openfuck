@@ -1,4 +1,4 @@
-#Require the following modules (and their dependencies) : python-socketio,flask,eventlet,flask_cors,flask_sslify,flask_login,pyserial
+#Require the following modules (and their dependencies) : python-socketio,flask,eventlet,flask_cors,Flask-SSLify,flask_login,pyserial
 
 #Generate a file and place a secret key string for the flask app in it. Insert the path to the file in the line labeled "INSERT_SECRET_KEY"
 
