@@ -40,7 +40,7 @@ We suggest powering the stepper drivers at 30V or as close as you can get withou
 
 The two stepper drivers share the serial SPI bus, wire D11, D12 , D13 of your arduino Uno to the correct pins on the stepper driver for  DO, DI, and CLK
 
-Each stepper has a (dir)ection, (nxt)/step, and (CS)/slave_select pin - wire those as described the following file directly to the arduino https://github.com/openfuck/code/blob/master/Code/Arduino%20/stepper_command_test/stepper_command_test.ino
+Each stepper has a (dir)ection, (nxt)/step, and (CS)/slave_select pin - wire those as described the following file directly to the arduino https://github.com/openfuckorg/openfuck/blob/master/Arduino/stepper_command_test/stepper_command_test.ino
 
 In general : connect as shown in : https://www.pololu.com/product/2970
 
@@ -67,36 +67,39 @@ Python/Actuator.py
 
 This file actually runs the machine. It receives commands via the /tmp/stream io file (yes file based io is ugly - sorry :( ) and issues the corresponding commands via serial to the embedded electronics
 
+Please add teh correct serial ports in actuator.py : 
+
+serSolenoid = serial.Serial('INSERT_SOLENOID_PORT_HERE', 115200)
+serValves = serial.Serial('INSERT_STEPPERVALVE_PORT_HERE', 115200)
+
 2) User Interface Scripts
 
-The user interface is provided either via a website served over HTTPS.
-Both of these work great on Tablets and (larger screened) smartphones
+The user interface is provided via a website served over HTTPS. This works great on Tablets and (larger screened) smartphones.
 
 Description of functions 
 1) OFF/ON Switch - Obviously the Master Off On Switch
 2) Sliders
     A) Max Depth - The maximum depth the piston will fuck (end stop)
     B) Stroke Length - How long the stroke will be (how far back from maximum it will pull back)
-    C) Max and Min Delay - How long the piston will wait at its maximum extension (inside you) and             minimum extension (pulled back/out)
+    C) Max and Min Delay - How long the piston will wait at its maximum extension (inside you) and minimum extension (pulled back/out)
     D) Min/Max speed - Speed controls mode dependent.
     E) Speed Step/Ramp Size - How fast the speed crossing/speed ramp (fast slow) modes will ramp
 3) Move (zero,min,max) - tells the piston to go to zero, its minimum extension or its maximum extension
 4) Modes
-    A) Go between -> goes forward and backward between, forward speed is max speed , backward speed is         min speed
-    B) Speed Crossing -> Starts by fucking in quickly, pulling out slowly , gradually fucks more slowly        and pulls out faster and vice versa. Min speed and max speed specify the maximum and minimum            speeds that will be achieved and step size controls the step
-    C) Speed Ramp/ Fast Slow -> starts by fucking in and out slowly , gradually increasing speed and           vice versa. Min speed and max speed specify the maximum and minimum speeds that will be achieved        and step size controls the step size.
+    A) Go between -> goes forward and backward between, forward speed is max speed , backward speed is min speed
+    B) Speed Crossing -> Starts by fucking in quickly, pulling out slowly , gradually fucks more slowly and pulls out faster and vice versa. Min speed and max speed specify the maximum and minimum speeds that will be achieved and step size controls the step
+    C) Speed Ramp/ Fast Slow -> starts by fucking in and out slowly , gradually increasing speed and vice versa. Min speed and max speed specify the maximum and minimum speeds that will be achieved and step size controls the step size.
     D) Slapper - In quickly , out slowly
     E) Threesome - Complex movement profile, read code to figure out what it does. 
 
 
 Python/machine_server.py
-Serves the machine control website over SSL (You will need to add the SSL cert) that controls the robot.
-
+Serves the machine control website over SSL. You will need to add the SSL cert, SSL cert key, and a webapp secret key - see the comments in machine_server.py for instructions
 
 Running the robot 
 
 1) Start a front end 
-        Launch machine_server.py and navigate to http://localhost:5000 in a browser
+        Launch machine_server.py and navigate to https://localhost:5000 or https://ROBOTS_IP_HERE:5000 in a browser
         (obviously you can also expose this on the internet as a website - proceed with caution)
         
 2) Start back end - launch actuator.py
