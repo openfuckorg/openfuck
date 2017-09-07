@@ -56,22 +56,25 @@ Final hookup :
 
 Control Computer
 
-A Raspberry PI is used as the control computer for this device. We recommend the Raspberry Pi 3.  We use Raspbian + Python to run the control "backend". The front end consists of a Websockets based web app.
+A RaspberryPi (or other SBC) is used as the control computer for this device. We recommend the Raspberry Pi 3.  We use Raspbian + Python to run the control "backend". The front end consists of a Websockets based web app.
+
+We recommend having your RaspberryPi set up as a WiFi hotspot. (There are tons of guides on how to do this)
 
 1) Actuator Script
 
 Python/Actuator.py
 
-This file actually runs the machine. It receives commands via the /tmp/stream io file (yes file based io is ugly - sorry :( ) and issues the corresponding commands via serial to the embedded electronics
+This file actually runs the machine. It receives commands via the /tmp/stream file (yes file based io is ugly - sorry :( ) and issues the corresponding commands via serial to the embedded electronics
 
-Please add teh correct serial ports in actuator.py : 
+Please  the correct serial ports at the start of actuator.py : 
 
 serSolenoid = serial.Serial('INSERT_SOLENOID_PORT_HERE', 115200)
 serValves = serial.Serial('INSERT_STEPPERVALVE_PORT_HERE', 115200)
 
-2) User Interface Scripts
+2) User Interface Script
 
-The user interface is provided via a website served over HTTPS. This works great on Tablets and (larger screened) smartphones.
+Python/machine_server.py
+Serves the machine control website over SSL. You will need to add the SSL cert, SSL cert key, and a webapp secret key - see the comments in machine_server.py for instructions. This interface works great on Tablets and (larger screened) smartphones.
 
 Description of functions 
 1) OFF/ON Switch - Obviously the Master Off On Switch
@@ -89,9 +92,6 @@ Description of functions
     D) Slapper - In quickly , out slowly
     E) Threesome - Complex movement profile, read code to figure out what it does. 
 
-
-Python/machine_server.py
-Serves the machine control website over SSL. You will need to add the SSL cert, SSL cert key, and a webapp secret key - see the comments in machine_server.py for instructions
 
 Running the robot 
 
