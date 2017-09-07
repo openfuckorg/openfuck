@@ -1,11 +1,8 @@
 OPENFUCK README
 OpenFuck Wiki https://github.com/openfuckorg/documents/wiki
 
-
 Frame 
 A frame was constructed from aluminium extrusion. See demo video and parts list to figure out how to put together one for yourself. 
-
-
 
 Air Handling
 An Air Compressor (>1HP) compresses air which is then filtered and regulated and regulated to ~50PSI before being fed into the solenoid explained below. It is preferable to run the robot at as high a pressure as possible while ensuring that the compressor is able to pump sufficient air to keep the pressure constant while running at full speed (Run the robot at full speed and crank up the pressure until the compressor is no longer able to keep up, then dial back slightly). We are easily able to operate up to 100PSI with a powerful enough compressor. Bare in mind this means the piston is capable of producing *SIGNIFICANT* amounts of force at *EXTREMELY HIGH* speeds (this makes for some yummy fucking but is rather dangerous ;)
