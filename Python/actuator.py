@@ -1,32 +1,36 @@
 __author__ = 'matthewpang'
-
 import serial
 import time
 import pickle
+import io
 
 serSolenoid = serial.Serial('/dev/ttyACM0', 115200)
 serValves = serial.Serial('/dev/ttyACM1', 115200)
 
 
 def go(pos=100):
+    #print(pos)
     serSolenoid.flushInput()
     serSolenoid.flushOutput()
     serSolenoid.write(chr(pos))
 
 
 def valveset(valvepos=0):
+    #print(valvepos)
     serValves.flushInput()
     serValves.flushOutput()
     serValves.write(chr(valvepos))
 
 
 def fwdValveSet(valvepos=0):
+    #print(valvepos)
     serValves.flushInput()
     serValves.flushOutput()
     serValves.write(chr(valvepos))
 
 
 def backValveSet(valvepos=0):
+    #print(valvepos)
     serValves.flushInput()
     serValves.flushOutput()
     serValves.write(chr(int(valvepos + 101)))
@@ -40,7 +44,6 @@ def pistonwait():
         time.sleep(0.01)
         # print("PistonSleep")
     return
-
 
 def gobetween(mode, min_position=165, max_position=235, indelay=0, outdelay=0):
     if (on_off == 0) or (mode != 0) or (min_position == max_position):
@@ -219,32 +222,49 @@ def read():
     global min_speed
     global mode
     global reset
-    file = open('/tmp/stream', 'r')
-    a = pickle.load(file)
+    try:
+        with io.open('/tmp/stream', 'rb') as file:
+            try:
+                a = pickle.load(file)
+                success = True
+            except(IOError,EOFError):
+                print("Pickle IO EOF Error")
+                return
+            except:
+                print("SOME OTHER ERROR")
+                time.sleep(0.5)
+                return
 
-    stroke_slider = a[2]
-    max_slider = a[3]
-    inner_slider = a[4]
-    outer_slider = a[5]
-    max_speed = a[6]
-    min_speed = a[11]
-    step_adjust = a[10]
-    on_off = a[0]
-    mode = a[12]
-    go_zero = a[9]
-    go_min = a[8]
-    go_max = a[7]
-    v_zero = a[1]
-    reset = a[13]
+    except(IOError,EOFError):
+        print("File IO Error")
+        time.sleep(0.5)
+        return
+
+    if success:
+        v_zero = a[0]
+        on_off = a[1]
+        stroke_slider = a[2]
+        max_slider = a[3]
+        inner_slider = a[4]
+        outer_slider = a[5]
+        max_speed = a[6]
+        go_max = a[7]
+        go_min = a[8]
+        go_zero = a[9]
+        step_adjust = a[10]
+        min_speed = a[11]
+        mode = a[12]
+        reset = a[13]
+    else:
+        print("Did not write corrupted data")
 
 
 def main():
     while True:
         try:
             read()
-        except (IOError, EOFError):
-            continue
-
+        except:
+            pass
         if go_max == 1:
             backValveSet(15)
             fwdValveSet(15)
@@ -272,10 +292,12 @@ def main():
 
         else:
             # print("Send Valve State")
+            if (on_off == 0):
+                time.sleep(0.15)
+
             if (on_off == 1):
                 # print("fucking")
-                gobetween(mode, int(max_slider - stroke_slider), int(max_slider), inner_slider / 10.0,
-                          outer_slider / 10.0)
+                gobetween(mode, int(max_slider - stroke_slider), int(max_slider), inner_slider / 10.0, outer_slider / 10.0)
                 speed_crossing(min_speed, max_speed, step_adjust)
                 fastslow(min_speed, max_speed, step_adjust)
                 slapper(min_speed, max_speed)

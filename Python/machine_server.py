@@ -1,21 +1,35 @@
-#Runs on Python 2.7
-#On raspberry pi , install pip first from the python-dev apt package . http://raspberry.io/wiki/how-to-get-python-on-your-raspberrypi/
-#Install Dependencies:
-#sudo pip install python-socketio flask eventlet flask-cors flask-sslify flask-login pyserial future 
+#Require the following modules (and their dependencies) : python-socketio,flask,eventlet,flask_cors,flask_sslify,flask_login,pyserial
+
+#Generate a file and place a secret key string for the flask app in it. Insert the path to the file in the line labeled "INSERT_SECRET_KEY"
+
+#Generate / Acquire an SSL CERT - Insert the paths to the SSL Certificate .crt and .key files where instructed (see __main__ at the end of this file)
+
 
 async_mode = 'eventlet'
 
-import time, json, random, string, pickle
-from flask import Flask, render_template
+import pickle
+from flask import Flask, render_template, request,url_for,redirect
 import socketio
+import hashlib
+from flask_cors import CORS, cross_origin
+from flask_sslify import SSLify
+import io
+
+#Load Secret Key
+f1 = io.open('INSERT_SECRET_KEY','r')
+secret_key = f1.read()
+f1.close()
 
 sio = socketio.Server(logger=True, async_mode=async_mode)
 app = Flask(__name__)
+CORS(app)  #allow cross origin because google is fussy
+sslify = SSLify(app)  #redirect everything to HTTPS because google is fussy (also its a good idea)
 app.wsgi_app = socketio.Middleware(sio, app.wsgi_app)
-app.config['SECRET_KEY'] = '3Eu7r{w4zBt>ktx?$LgXVgVs7m;*86yX,j2mz7M8>JMzi$2MC;'
+app.config['SECRET_KEY'] = secret_key  #Apply loaded secret key
 file_thread = None
 resetter_thread = None
 
+#Define initial control values
 values = {
     'max_depth':135,
     'stroke_length':15,
@@ -34,15 +48,13 @@ values = {
 }
 
 def file_write_thread():
-    count = 0
     while True:
-        count += 1
         sio.sleep(0.1)
-        with open('/tmp/stream', 'w') as file:
+        with io.open('/tmp/stream', 'wb') as file:
             #read values and generate array a
             a = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            a[0] = int(values['on_off']) #on_off
-            a[1] = 0 #v_zero #Unused
+            a[0] = 255 #v_zero #Unused
+            a[1] = int(values['on_off']) #on_off
             a[2] = int(values['stroke_length']) #stroke_slider
             a[3] = int(values['max_depth']) #max_slider
             a[4] = float(values['min_delay']) #inner_slider
@@ -56,7 +68,6 @@ def file_write_thread():
             a[12] = int(values['mode']) #mode
             a[13] = int(values['reset']) #reset
             pickle.dump(a, file)
-            #print(a)
 
 def button_resetter_thread():
     count = 0
@@ -68,34 +79,34 @@ def button_resetter_thread():
         values['go_max'] = 0
         values['reset'] = 0
 
-
 @app.route('/')
 def index():
+    return redirect(url_for('controller'))
+
+@app.route('/logout')
+def logout():
+    flask_login.logout_user()
+    return 'Logged out'
+
+@app.route('/controller')
+def controller():
     global file_thread,resetter_thread
     if file_thread is None:
         file_thread = sio.start_background_task(file_write_thread)
 
     if resetter_thread is None:
         resetter_thread = sio.start_background_task(button_resetter_thread)
-    return render_template('index.html', **values)
+
+    return render_template('controller_htmlinput.html', **values)
 
 @sio.on('connect', namespace='/fucking')
 def test_connect(sid, environ):
-    sio.emit('my response', {'data': 'Connected', 'count': 0}, room=sid, namespace='/fucking')
     sio.emit('update_radio', {'who': 'mode', 'data': values['mode']}, room=sid, namespace='/fucking') #to initialize on new connect - because radio buttons are special flowers
     print('Client connected')
 
 @sio.on('disconnect', namespace='/fucking')
 def test_disconnect(sid):
     print('Client disconnected')
-
-@sio.on('event', namespace='/fucking')
-def test_message(sid, message):
-    sio.emit('event', {'data': message['data']}, room=sid,namespace='/fucking')
-
-@sio.on('broadcast', namespace='/fucking')
-def test_broadcast_message(sid, message):
-    sio.emit('broadcast', {'data': message['data']}, namespace='/fucking')
 
 @sio.on('ui_change', namespace='/fucking')
 def interface_update(sid,message):
@@ -121,6 +132,10 @@ if __name__ == '__main__':
         #check and deploy with eventlet
         import eventlet
         import eventlet.wsgi
-        eventlet.wsgi.server(eventlet.listen(('', 5000)), app)
+
+        eventlet.wsgi.server(eventlet.wrap_ssl(eventlet.listen(('', 5000)),
+                                               certfile='INSERT_SSL_CERT',
+                                               keyfile='INSERT_SSL_KEY',
+                                               server_side=True), app)
     else:
         print('Unknown async_mode: ' + sio.async_mode)

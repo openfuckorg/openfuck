@@ -1,0 +1,24 @@
+
+aside {
+    float: left;
+    width: 160px;
+    border: 0px solid black;
+	padding-bottom:69px;
+}
+
+section {
+    margin-left: 161px;
+    border: 0px solid black;
+}
+
+.ui-slider {width: 90%;  margin-top:10px;  position: relative; text-align: center; font-size: 120%; height: 50px; line-height:40px; }
+.ui-slider .ui-slider-handle { position: absolute; z-index: 10; width: 40px; height: 60px; cursor: default; }
+.ui-widget-content .ui-state-default { background: #0066ff; opacity: 0.75; }
+
+#on_off {
+  width: 40% !important;
+}
+
+#on_off .ui-slider-handle {
+    width: 35px !important;
+}

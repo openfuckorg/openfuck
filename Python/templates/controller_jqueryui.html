@@ -1,0 +1,206 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="{{ url_for('static',filename='jquery-ui.css')}}">
+<link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='style_jquery.css') }}">
+    
+    <title>OpenFUCK Interface</title>
+    <script type="text/javascript" src="{{ url_for('static',filename='jquery.min.js')}}"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='jquery-ui.min.js')}}"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='jquery.ui.touch-punch.min.js')}}"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='socket.io.js')}}"></script>
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function(){
+            namespace = '/fucking';
+            var incoming_message = {who: 'nobody',data: 0};
+            var socket = io.connect('wss://fuck.openfuck.org:5000/fucking');
+            socket.on('connect', function() {
+                socket.emit('event', {data: 'I\'m connected!'});
+            });
+            socket.on('disconnect', function() {
+                $('#log').append('<br>Disconnected');
+            });
+            socket.on('update_value', function(msg) {
+                incoming_message = msg;
+                console.log(incoming_message.who,incoming_message.data);
+                $('input#'+msg.who).val(msg.data);
+                $('#'+ msg.who).slider('value', msg.data);
+                $('#log').append('<br>Update Value ' + msg.data +msg.who);
+            });
+            socket.on('update_radio', function(msg) {
+                $('input:radio[name="mode"]').filter(`[value="${msg.data}"]`).click();
+                $('#log').append('<br>Update Radio ' + msg.data +msg.who);
+            });
+            $('input.sync').on('change', function(event) {
+                socket.emit('ui_change', {who: $(this).attr('id'), data: $(this).val()});
+                return false;
+            });
+            $('#go_zero').click(function () {
+                socket.emit('button_click', {who: $(this).attr('id'), data: 1});
+            });
+            $('#go_min').click(function () {
+                socket.emit('button_click', {who: $(this).attr('id'), data: 1});
+            });
+            $('#go_max').click(function () {
+                socket.emit('button_click', {who: $(this).attr('id'), data: 1});
+            });
+            $('form#mode').on('change', function(event) {
+                socket.emit('radio_change', {who: $(this).attr('id'), data: $('input:radio[name=mode]:checked').val()});
+                return false
+        }); 
+
+            $(function() {
+                $( '#on_off' ).slider({
+                min: 0,
+                max: 1,
+                step: 1,
+                change: function (event,ui){
+                    if (ui.value != incoming_message.data || incoming_message.who != 'on_off') {
+                        socket.emit('ui_change',{who: 'on_off',data: ui.value });
+                        }
+                    }
+                });                                    
+            });
+
+            $(function() {
+                $( '#max_depth' ).slider({
+                min: 135,
+                max: 240,
+                step: 5,
+                change: function (event,ui){
+                    if (ui.value != incoming_message.data || incoming_message.who != 'max_depth') {
+                        socket.emit('ui_change',{who: 'max_depth',data: ui.value });
+                        }
+                    }
+                });                                    
+            });
+
+
+            $(function() {
+                $( '#stroke_length' ).slider({
+                min: 15,
+                max: 135,
+                step: 1,
+                change: function (event,ui){
+                    if (ui.value != incoming_message.data || incoming_message.who != 'stroke_length') {
+                        socket.emit('ui_change',{who: 'stroke_length',data: ui.value });
+                        }
+                    }
+                });                                    
+            });
+
+            $(function() {
+                $( '#max_delay' ).slider({
+                min: 0.5,
+                max: 10,
+                step: 0.5,
+                change: function (event,ui){
+                    if (ui.value != incoming_message.data || incoming_message.who != 'max_delay') {
+                        socket.emit('ui_change',{who: 'max_delay',data: ui.value });
+                        }
+                    }
+                });                                    
+            });
+
+            $(function() {
+                $( '#min_delay' ).slider({
+                min: 0.5,
+                max: 10,
+                step: 0.5,
+                change: function (event,ui){
+                    if (ui.value != incoming_message.data || incoming_message.who != 'min_delay') {
+                        socket.emit('ui_change',{who: 'min_delay',data: ui.value });
+                        }
+                    }
+                });                                    
+            });
+
+            $(function() {
+                $( '#max_speed' ).slider({
+                min: 11,
+                max: 100,
+                step: 1,
+                change: function (event,ui){
+                    if (ui.value != incoming_message.data || incoming_message.who != 'max_speed') {
+                        socket.emit('ui_change',{who: 'max_speed',data: ui.value });
+                        }
+                    }
+                });                                    
+            });
+
+            $(function() {
+                $( '#min_speed' ).slider({
+                min: 11,
+                max: 100,
+                step: 1,
+                change: function (event,ui){
+                    if (ui.value != incoming_message.data || incoming_message.who != 'min_speed') {
+                        socket.emit('ui_change',{who: 'min_speed',data: ui.value });
+                        }
+                    }
+                });                                    
+            });
+
+            $(function() {
+                $( '#speed_step' ).slider({
+                min: 8,
+                max: 100,
+                step: 1,
+                change: function (event,ui){
+                    if (ui.value != incoming_message.data || incoming_message.who != 'speed_step') {
+                        socket.emit('ui_change',{who: 'speed_step',data: ui.value });
+                        }
+                    }
+                });                                    
+            });
+
+        });
+    </script>
+</head>
+<body>
+	<aside>
+    <div align = "center">
+    <h2>OpenFUCK</h2><br>
+    OpenFuck.org<br>
+    
+    <h2>Off  |  On</h2>
+    <div id="on_off"></div>
+	
+	<h2 style="text-align:center;">Move</h2>
+    <input type="button" id="go_zero" value="Go Zero" /><br>
+    <input type="button" value="Go Min" id="go_min" /><br>
+    <input type="button" value="Go Max" id="go_max" />
+
+    <h2>Mode</h2>
+    <form id="mode">
+    <input type="radio" name="mode" value="0" checked> Go Between<br>
+    <input type="radio" name="mode" value="1"> Speed Crossing<br>
+    <input type="radio" name="mode" value="2"> Speed Ramp<br>
+    <input type="radio" name="mode" value="3"> Slapper<br>
+    <input type="radio" name="mode" value="4"> Threesome
+    <!-- <input type="radio" name="mode" value="5"> Manual<br> -->
+    </form><br>
+	</div>
+    </aside>
+	
+    <section> 
+    <div align = "center">
+    
+        <div id="max_depth">Max Depth</div><br>
+        <div id="stroke_length">Stroke Length</div><br>
+        <div id="max_speed">Max Speed</div><br> 
+        <div id="min_speed">Min Speed</div><br>
+        <div id="max_delay">Max Wait</div><br>
+        <div id="min_delay">Min Wait</div><br>
+        <div id="speed_step">Speed Ramp</div><br>
+    
+    </div>    
+    
+	</section>
+    <footer>
+  <p align ="center">Source Code and Details at http://wwww.openfuck.org</p>
+
+    </footer>
+</body>
+</html>

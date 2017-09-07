@@ -59,17 +59,17 @@ Final hookup :
 
 Control Computer
 
-A Raspberry PI is used as the control computer for this device. We recommend the Raspberry Pi 3.  We use Raspbian + Python to run the control "backend". The front end consists of either a TKINTER local app or a Websockets based web app.
+A Raspberry PI is used as the control computer for this device. We recommend the Raspberry Pi 3.  We use Raspbian + Python to run the control "backend". The front end consists of a Websockets based web app.
 
 1) Actuator Script
 
-Piston/Actuator.py
+Python/Actuator.py
 
 This file actually runs the machine. It receives commands via the /tmp/stream io file (yes file based io is ugly - sorry :( ) and issues the corresponding commands via serial to the embedded electronics
 
 2) User Interface Scripts
 
-The user interface is provided either via TKINTER or a Web App. 
+The user interface is provided either via a website served over HTTPS.
 Both of these work great on Tablets and (larger screened) smartphones
 
 Description of functions 
@@ -88,20 +88,15 @@ Description of functions
     D) Slapper - In quickly , out slowly
     E) Threesome - Complex movement profile, read code to figure out what it does. 
 
-Piston/tkinter_local_interface.py
 
-Local interface based on TKINTER
+Python/machine_server.py
+Serves the machine control website over SSL (You will need to add the SSL cert) that controls the robot.
 
-Piston/web_interface.py
-
-Web interface based on Websockets/Flask web app and jquery/javascript website
 
 Running the robot 
 
 1) Start a front end 
-    A) Launch tkinter_local_interface.py in a terminal window
-    
-    B) Launch web_interface.py and navigate to http://localhost:5000 in a browser
+        Launch machine_server.py and navigate to http://localhost:5000 in a browser
         (obviously you can also expose this on the internet as a website - proceed with caution)
         
 2) Start back end - launch actuator.py
