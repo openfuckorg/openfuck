@@ -14,7 +14,7 @@ int freeze = 0;
 
 int tolerance = 15;
 int early_fwd = 15;
-int early_bck = 15;
+int early_bck = 13;
 
 
 
@@ -75,9 +75,9 @@ void loop() {
     digitalWrite(forward, LOW);
     digitalWrite(backward, LOW);
     delay(10);
-    input = Position;
-    //Serial.println(Position);
+    //input = Position;
     Serial.write(255);
+    //Serial.println(error);
   }
 
 
@@ -92,10 +92,10 @@ void loop() {
     delay(12);
     digitalWrite(forward, LOW);//brake
     digitalWrite(backward, HIGH);
-    delay(12);
+    delay(20);
     digitalWrite(forward, LOW);
     digitalWrite(backward, LOW);
-    Serial.write(255);
+    //Serial.write(255);
   }
 
   /* If we are travelling backward, here is how early we issue
@@ -109,10 +109,10 @@ void loop() {
     delay(12);
     digitalWrite(forward, HIGH);//brake
     digitalWrite(backward, LOW);
-    delay(12);
+    delay(15);
     digitalWrite(forward, LOW);
     digitalWrite(backward, LOW);
-    Serial.write(255);
+    //Serial.write(255);
   }
 
   // Move Forward
@@ -136,9 +136,8 @@ void loop() {
     State = 0;
     digitalWrite(forward, LOW);
     digitalWrite(backward, LOW);
-    //Serial.println(Position);
+    //Serial.println(error);
     Serial.write(254);
   }
 }
-
 
